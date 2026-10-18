@@ -1,0 +1,6 @@
+{
+  "name": "VOLTRO – فروشگاه لوکس گوشی و گجت‌های هوشمند",
+  "description": "فروشگاه آنلاین تخصصی آیفون، سامسونگ گلکسی، مک‌بوک، اپل واچ و گجت‌های پرچمدار با دستیار هوشمند خرید و ارسال اختصاصی.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

@@ -1,0 +1,966 @@
+{
+  "schemaVersion": 1,
+  "users": [
+    {
+      "id": "usr-admin-01",
+      "name": "مدیر ارشد ولترو",
+      "email": "admin@voltro.ir",
+      "role": "admin",
+      "phone": "09121112233",
+      "avatar": "https://lh3.googleusercontent.com/aida-public/AB6AXuDDFf26GXqr-2c3bJ3L1A3MwQX5syyjKNU29_8haSa6wY-ehOAyVT9h0KPPuqZyBeNW-3ZtlnhTQBGbWqAJunHAjm8IELD3Oij-0TKsEVXjgxxSMai0bjZ-a5vjlTaCyC0etuntG4xCLek869jGnUh_zAsTDnZvcGknpApu4InT2qhAaD6_L9EuZXj58x38FBEJTE--zSBsugndzEPNdZBaU1y84sO1B3O1_AoHFWVNCpzx1F7Rflc",
+      "passwordHash": "bca7ae6188771c6ac67a06c33240c3d6494345eaf03e76a19ecf769dc965048e20182208077ec826a6d5c453b30f03cc33ae704c2ba0bafa8df97709d0749465",
+      "salt": "89aa4d04b851396483da3aaf77c9d1fa",
+      "createdAt": "2026-10-13T00:56:23.252Z"
+    },
+    {
+      "id": "usr-demo-01",
+      "name": "پوریا بهرامی",
+      "email": "user@voltro.ir",
+      "role": "customer",
+      "phone": "09351234567",
+      "avatar": "https://lh3.googleusercontent.com/aida-public/AB6AXuDDFf26GXqr-2c3bJ3L1A3MwQX5syyjKNU29_8haSa6wY-ehOAyVT9h0KPPuqZyBeNW-3ZtlnhTQBGbWqAJunHAjm8IELD3Oij-0TKsEVXjgxxSMai0bjZ-a5vjlTaCyC0etuntG4xCLek869jGnUh_zAsTDnZvcGknpApu4InT2qhAaD6_L9EuZXj58x38FBEJTE--zSBsugndzEPNdZBaU1y84sO1B3O1_AoHFWVNCpzx1F7Rflc",
+      "passwordHash": "f7fb46363b51283afff4de8880084ac7256c31e92d96c6c749d7a792e85ed85740be609249fe2bcaf8e72a02af3d32b310e3d5b2a68715103d6b20fd62b88429",
+      "salt": "5e68084c2faa007a39494edef1f1a455",
+      "createdAt": "2026-10-13T00:56:23.252Z"
+    }
+  ],
+  "categories": [
+    {
+      "id": "cat-audio",
+      "name": "هدفون و صوتی",
+      "nameEn": "Headphones & Audio",
+      "slug": "audio",
+      "description": "های‌فای و استودیویی فوق‌پیشرفته",
+      "image": "/images/products/airpods-max.png",
+      "itemCount": 24
+    },
+    {
+      "id": "cat-watches",
+      "name": "ساعت‌های هوشمند",
+      "nameEn": "Smartwatches",
+      "slug": "watches",
+      "description": "تیتانیوم و سافایر با مقاومت در شرایط سخت",
+      "image": "/images/products/airpods-max.png",
+      "itemCount": 18
+    },
+    {
+      "id": "cat-laptops",
+      "name": "لپ‌تاپ پرو",
+      "nameEn": "Pro Laptops",
+      "slug": "laptops",
+      "description": "معماری اپل سیلیکون و ورک‌استیشن‌های رده‌بالا",
+      "image": "/images/products/macbook-pro-16.png",
+      "itemCount": 31
+    },
+    {
+      "id": "cat-earbuds",
+      "name": "ایرپاد و بی‌سیم",
+      "nameEn": "Wireless Earbuds",
+      "slug": "earbuds",
+      "description": "عایق فعال نویز و صدای فضایی شخصی‌سازی‌شده",
+      "image": "/images/products/airpods-max.png",
+      "itemCount": 19
+    },
+    {
+      "id": "cat-smartphones",
+      "name": "گوشی‌های هوشمند",
+      "nameEn": "Flagship Smartphones",
+      "slug": "smartphones",
+      "description": "پرچمداران تیتانیومی آیفون و گلکسی اولترا",
+      "image": "/images/products/iphone-15-pro-max.png",
+      "itemCount": 22
+    }
+  ],
+  "brands": [
+    {
+      "id": "brand-apple",
+      "name": "Apple",
+      "slug": "apple"
+    },
+    {
+      "id": "brand-samsung",
+      "name": "Samsung",
+      "slug": "samsung"
+    },
+    {
+      "id": "brand-bo",
+      "name": "Bang & Olufsen",
+      "slug": "bang-olufsen"
+    },
+    {
+      "id": "brand-sony",
+      "name": "Sony",
+      "slug": "sony"
+    },
+    {
+      "id": "brand-anker",
+      "name": "Anker",
+      "slug": "anker"
+    }
+  ],
+  "products": [
+    {
+      "id": "prod-macbook-pro-16",
+      "name": "مک‌بوک پرو ۱۶ اینچ M3 Max",
+      "nameEn": "MacBook Pro 16″ M3 Max",
+      "subtitle": "قدرتمندترین پردازشگر موبایل جهان با ۱۶ هسته پردازشی و معماری گرافیکی نسل جدید برای پروژه‌های بی‌نهایت سنگین.",
+      "slug": "macbook-pro-16-m3-max",
+      "brand": "Apple",
+      "category": "laptops",
+      "basePrice": 137900000,
+      "compareAtPrice": 149900000,
+      "description": "شاهکار مهندسی پردازش اپل سیلیکون با ۳۶ گیگابایت رم یکپارچه، نمایشگر شگفت‌انگیز Liquid Retina XDR با ۱۶۰۰ نیت روشنایی اوج، و خنک‌کننده ساکت آلومینیومی برای رندرهای سه‌بعدی و هوش مصنوعی.",
+      "images": [
+        "/images/products/macbook-pro-16.png"
+      ],
+      "variants": [
+        {
+          "id": "var-mbp-black-512",
+          "sku": "MBP16-M3MAX-SB-512",
+          "colorName": "مشکی فضایی (Space Black)",
+          "colorEn": "Space Black",
+          "colorHex": "#18181b",
+          "storage": "۵۱۲ گیگابایت",
+          "price": 137900000,
+          "stock": 6
+        },
+        {
+          "id": "var-mbp-black-1tb",
+          "sku": "MBP16-M3MAX-SB-1TB",
+          "colorName": "مشکی فضایی (Space Black)",
+          "colorEn": "Space Black",
+          "colorHex": "#18181b",
+          "storage": "۱ ترابایت",
+          "price": 149900000,
+          "compareAtPrice": 159000000,
+          "stock": 4
+        },
+        {
+          "id": "var-mbp-black-2tb",
+          "sku": "MBP16-M3MAX-SB-2TB",
+          "colorName": "مشکی فضایی (Space Black)",
+          "colorEn": "Space Black",
+          "colorHex": "#18181b",
+          "storage": "۲ ترابایت",
+          "price": 168900000,
+          "stock": 2
+        },
+        {
+          "id": "var-mbp-silver-1tb",
+          "sku": "MBP16-M3MAX-SL-1TB",
+          "colorName": "نقره‌ای پلاتینیوم (Silver)",
+          "colorEn": "Silver",
+          "colorHex": "#d4d4d8",
+          "storage": "۱ ترابایت",
+          "price": 149900000,
+          "stock": 3
+        }
+      ],
+      "specifications": {
+        "processor": "Apple M3 Max (۱۶ هسته CPU همراه با ۴۰ هسته پردازش گرافیکی و موتور عصبی ۱۶ هسته‌ای)",
+        "display": "۱۶.۲ اینچ Liquid Retina XDR، مینی‌ال‌ای‌دی، روشنایی ۱۶۰۰ نیت، رفرش ریت ۱۲۰ هرتز ProMotion",
+        "battery": "عمر باتری ۲۲ ساعت، باتری ۱۰۰ وات‌ساعت با آداپتور شارژ سریع ۱۴۰ واتی USB-C",
+        "ports": "۳ پورت Thunderbolt 4، خروجی HDMI 8K، درگاه SDXC، جک هدفون های‌امپدانس و شارژ ایمن MagSafe 3",
+        "weight": "۲.۱۶ کیلوگرم",
+        "os": "macOS Sequoia"
+      },
+      "rating": 5,
+      "reviewCount": 38,
+      "isFeatured": true,
+      "isFlashDeal": true,
+      "soldCount": 90,
+      "stockTotal": 15,
+      "warranty": "گارانتی ۱۸ ماهه طلایی ولترو + ۷ روز مهلت تعویض بی‌قیدوشرط",
+      "tags": [
+        "M3 Max",
+        "36GB RAM",
+        "Liquid Retina XDR",
+        "Thunderbolt 4"
+      ],
+      "createdAt": "2026-10-13T00:56:23.252Z"
+    },
+    {
+      "id": "prod-airpods-max",
+      "name": "هدفون اپل ایرپاد مکس",
+      "nameEn": "Apple AirPods Max",
+      "subtitle": "شکوهِ صدا در کمال خالص با درایور سفارشی تیتانیومی و عایق فعال نویز.",
+      "slug": "apple-airpods-max",
+      "brand": "Apple",
+      "category": "audio",
+      "basePrice": 42850000,
+      "compareAtPrice": 58000000,
+      "description": "شاهکار مهندسی آکوستیک با درایور سفارشی تیتانیومی ۴۰ میلی‌متری، عایق فعال نویز پیشرفته (ANC)، صدای فراگیر فضایی با ردیابی پویای حرکات سر و بدنه تمام آلومینیومی ارگونومیک.",
+      "images": [
+        "/images/products/airpods-max.png"
+      ],
+      "variants": [
+        {
+          "id": "var-max-spacegray",
+          "sku": "APM-SPACEGRAY",
+          "colorName": "خاکستری فضایی (Space Gray)",
+          "colorEn": "Space Gray",
+          "colorHex": "#38383a",
+          "storage": "استاندارد",
+          "price": 42850000,
+          "compareAtPrice": 58000000,
+          "stock": 4
+        },
+        {
+          "id": "var-max-silver",
+          "sku": "APM-SILVER",
+          "colorName": "نقره‌ای (Silver)",
+          "colorEn": "Silver",
+          "colorHex": "#e4e4e7",
+          "storage": "استاندارد",
+          "price": 42850000,
+          "compareAtPrice": 58000000,
+          "stock": 4
+        }
+      ],
+      "specifications": {
+        "processor": "دو تراشه Apple H1 (یکی در هر گوشی) با موتور پردازش محاسباتی آکوستیک",
+        "display": "بدنه آلومینیومی آندایز شده با بالشتک‌های مموری‌فوم قابل تنفس و هدبند مشبک توری",
+        "battery": "۲۰ ساعت شارژدهی مستمر با فعال بودن ANC و Spatial Audio، شارژ سریع ۵ دقیقه برای ۱.۵ ساعت",
+        "ports": "اتصال بلوتوث ۵.۰ کم‌تاخیر و درگاه Lightning / Type-C",
+        "weight": "۳۸۴ گرم"
+      },
+      "rating": 4.9,
+      "reviewCount": 64,
+      "isFeatured": true,
+      "isFlashDeal": true,
+      "soldCount": 76,
+      "stockTotal": 8,
+      "warranty": "گارانتی رسمی ۱۸ ماهه اصالت فیزیکی ولترو",
+      "tags": [
+        "40mm Driver",
+        "20h ANC",
+        "Spatial Audio",
+        "Titanium Acoustic"
+      ],
+      "createdAt": "2026-10-13T00:56:23.252Z"
+    },
+    {
+      "id": "prod-apple-watch-ultra-2",
+      "name": "اپل واچ اولترا ۲ تیتانیوم",
+      "nameEn": "Apple Watch Ultra 2 Titanium",
+      "subtitle": "ساعت فوق‌مقاوم با بدنه تیتانیومی گرید هوافضا، روشنایی ۳۰۰۰ نیت و جی‌پی‌اس دوفرکانسه دقیق.",
+      "slug": "apple-watch-ultra-2",
+      "brand": "Apple",
+      "category": "watches",
+      "basePrice": 49400000,
+      "compareAtPrice": 54000000,
+      "description": "طراحی شده برای اکتشاف، دویدن، غواصی و استقامت بی‌نهایت با دکمه اکشن اختصاصی، روشنایی خیره‌کننده ۳۰۰۰ نیت و حسگر عمق‌سنج تا ۴۰ متر.",
+      "images": [
+        "/images/products/apple-watch-ultra-2.png"
+      ],
+      "variants": [
+        {
+          "id": "var-watch-u2-trail",
+          "sku": "AWU2-TITANIUM-TRAIL",
+          "colorName": "بند تریل لوپ آبی/مشکی",
+          "colorEn": "Trail Loop",
+          "colorHex": "#27272a",
+          "storage": "۶۴ گیگابایت",
+          "price": 49400000,
+          "compareAtPrice": 54000000,
+          "stock": 2
+        },
+        {
+          "id": "var-watch-u2-ocean",
+          "sku": "AWU2-TITANIUM-OCEAN",
+          "colorName": "بند اوشن سفید غواصی",
+          "colorEn": "Ocean Band",
+          "colorHex": "#f4f4f5",
+          "storage": "۶۴ گیگابایت",
+          "price": 49400000,
+          "compareAtPrice": 54000000,
+          "stock": 3
+        }
+      ],
+      "specifications": {
+        "processor": "پردازنده دوهسته‌ای ۶۴ بیتی Apple S9 SiP با جسچر حرکتی Double Tap",
+        "display": "نمایشگر همیشه روشن Always-On Retina LTPO OLED با روشنایی شگفت‌انگیز ۳۰۰۰ نیت",
+        "battery": "۳۶ ساعت استفاده عادی و تا ۷۲ ساعت در حالت ذخیره باتری (Low Power)",
+        "ports": "شارژ مغناطیسی سریع بی‌سیم با کابل بافته‌شده تیتانیومی",
+        "sensors": "ECG نوار قلب، اکسیژن خون، حسگر دمای آب و عمق‌سنج، آژیر اضطراری ۸۶ دسی‌بل",
+        "weight": "۶۱.۴ گرم"
+      },
+      "rating": 4.9,
+      "reviewCount": 42,
+      "isFeatured": true,
+      "isFlashDeal": true,
+      "soldCount": 84,
+      "stockTotal": 5,
+      "warranty": "گارانتی ۱۸ ماهه شرکتی همراه با رجیستری رسمی همتا",
+      "tags": [
+        "Titanium 49mm",
+        "3000 Nits",
+        "Action Button",
+        "Dual GPS"
+      ],
+      "createdAt": "2026-10-13T00:56:23.252Z"
+    },
+    {
+      "id": "prod-iphone-15-pro-max",
+      "name": "آیفون ۱۵ پرو مکس ۲۵۶ گیگابایت",
+      "nameEn": "Apple iPhone 15 Pro Max Titanium",
+      "subtitle": "شاهکار تیتانیومی اپل با تراشه A17 Pro و دوربین زوم ۵ برابری پریسکوپ.",
+      "slug": "iphone-15-pro-max",
+      "brand": "Apple",
+      "category": "smartphones",
+      "basePrice": 81900000,
+      "compareAtPrice": 89500000,
+      "description": "اولین آیفون با آلیاژ تیتانیوم گرید ۵ صنایع هوافضا، دکمه اکشن قابل برنامه‌ریزی، درگاه USB-C با سرعت انتقال ۱۰ گیگابیت بر ثانیه و تراشه ۳ نانومتری A17 Pro مناسب گیمینگ کنسولی.",
+      "images": [
+        "/images/products/iphone-15-pro-max.png"
+      ],
+      "variants": [
+        {
+          "id": "var-ip15-nat-256",
+          "sku": "IP15PM-NAT-256",
+          "colorName": "تیتانیوم طبیعی (Natural Titanium)",
+          "colorEn": "Natural Titanium",
+          "colorHex": "#9a948c",
+          "storage": "۲۵۶ گیگابایت",
+          "price": 81900000,
+          "compareAtPrice": 89500000,
+          "stock": 3
+        },
+        {
+          "id": "var-ip15-blk-256",
+          "sku": "IP15PM-BLK-256",
+          "colorName": "تیتانیوم مشکی (Black Titanium)",
+          "colorEn": "Black Titanium",
+          "colorHex": "#2b2a2d",
+          "storage": "۲۵۶ گیگابایت",
+          "price": 81900000,
+          "compareAtPrice": 89500000,
+          "stock": 2
+        },
+        {
+          "id": "var-ip15-nat-512",
+          "sku": "IP15PM-NAT-512",
+          "colorName": "تیتانیوم طبیعی (Natural Titanium)",
+          "colorEn": "Natural Titanium",
+          "colorHex": "#9a948c",
+          "storage": "۵۱۲ گیگابایت",
+          "price": 94500000,
+          "stock": 2
+        }
+      ],
+      "specifications": {
+        "processor": "تراشه A17 Pro (۶ هسته پردازشی با پردازنده گرافیکی ۶ هسته‌ای و ری‌تریسینگ سخت‌افزاری)",
+        "display": "۶.۷ اینچ Super Retina XDR OLED، نرخ نوسازی ۱۲۰ هرتز، داینامیک آیلند، اوج روشنایی ۲۰۰۰ نیت",
+        "camera": "دوربین اصلی ۴۸ مگاپیکسل با سنسور ۲۴ مگاپیکسلی پیش‌فرض، تله‌فوتو ۵ برابری پریسکوپ ۱۲۰ میلی‌متری",
+        "battery": "عمر باتری ۲۹ ساعت پخش مداوم ویدیو با پشتیبانی از MagSafe و شارژ سریع ۵۰٪ در ۳۰ دقیقه",
+        "ports": "درگاه USB-C با استاندارد USB 3 (سرعت انتقال تا ۱۰Gb/s)",
+        "weight": "۲۲۱ گرم",
+        "os": "iOS 18"
+      },
+      "rating": 4.9,
+      "reviewCount": 95,
+      "isFeatured": true,
+      "isFlashDeal": true,
+      "soldCount": 85,
+      "stockTotal": 7,
+      "warranty": "گارانتی ۱۸ ماهه شرکتی با رجیستری دائم و خدمات رسمی",
+      "tags": [
+        "A17 Pro",
+        "Titanium Grade 5",
+        "5x Telephoto",
+        "USB-C 3.0"
+      ],
+      "createdAt": "2026-10-13T00:56:23.252Z"
+    },
+    {
+      "id": "prod-samsung-s24-ultra",
+      "name": "سامسونگ گلکسی اس ۲۴ اولترا",
+      "nameEn": "Samsung Galaxy S24 Ultra 5G",
+      "subtitle": "پرچمدار هوش مصنوعی گلکسی با فریم تیتانیومی، قلم لمسی S-Pen و زوم ۱۰۰ برابری.",
+      "slug": "galaxy-s24-ultra",
+      "brand": "Samsung",
+      "category": "smartphones",
+      "basePrice": 74500000,
+      "compareAtPrice": 82000000,
+      "description": "پیشرفته‌ترین تلفن هوشمند اندرویدی با تراشه Snapdragon 8 Gen 3 for Galaxy، صفحه تخت شیشه‌ای ضدبازتاب Corning Gorilla Armor و مجموعه کامل هوش مصنوعی Galaxy AI.",
+      "images": [
+        "/images/products/samsung-s24-ultra.png"
+      ],
+      "variants": [
+        {
+          "id": "var-s24u-gray-256",
+          "sku": "S24U-GRAY-256",
+          "colorName": "تیتانیوم خاکستری (Titanium Gray)",
+          "colorEn": "Titanium Gray",
+          "colorHex": "#737277",
+          "storage": "۲۵۶ گیگابایت",
+          "price": 74500000,
+          "compareAtPrice": 82000000,
+          "stock": 5
+        },
+        {
+          "id": "var-s24u-black-512",
+          "sku": "S24U-BLK-512",
+          "colorName": "تیتانیوم مشکی (Titanium Black)",
+          "colorEn": "Titanium Black",
+          "colorHex": "#2b2a2d",
+          "storage": "۵۱۲ گیگابایت",
+          "price": 84900000,
+          "stock": 3
+        }
+      ],
+      "specifications": {
+        "processor": "کوالکام Snapdragon 8 Gen 3 for Galaxy (۴ نانومتری فوق بهینه)",
+        "display": "۶.۸ اینچ Dynamic LTPO AMOLED 2X، نرخ نوسازی متغیر ۱ تا ۱۲۰ هرتز، روشنایی ۲۶۰۰ نیت، ضدبازتاب",
+        "camera": "دوربین اصلی ۲۰۰ مگاپیکسلی، پریسکوپ ۵۰ مگاپیکسلی با زوم اپتیکال ۵ برابر و زوم فضایی ۱۰۰ برابر",
+        "battery": "۵۰۰۰ میلی‌آمپر ساعت با شارژ ۴۵ وات سیمی و ۱۵ وات بی‌سیم معکوس",
+        "ports": "USB-C 3.2 Gen 1 با پشتیبانی از Samsung DeX",
+        "weight": "۲۳۲ گرم",
+        "os": "Android 15 با One UI 7 و ۷ سال آپدیت تضمینی"
+      },
+      "rating": 4.8,
+      "reviewCount": 52,
+      "isFeatured": true,
+      "soldCount": 48,
+      "stockTotal": 8,
+      "warranty": "گارانتی ۱۸ ماهه رسمی و رجیستری تضمینی",
+      "tags": [
+        "Galaxy AI",
+        "200MP Camera",
+        "Snapdragon 8 Gen 3",
+        "S-Pen"
+      ],
+      "createdAt": "2026-10-13T00:56:23.252Z"
+    },
+    {
+      "id": "prod-airpods-pro-2",
+      "name": "ایرپاد پرو ۲ تایپ‌سی",
+      "nameEn": "Apple AirPods Pro (2nd Gen) USB-C",
+      "subtitle": "عایق فعال نویز نسل دوم با تراشه H2 و پورت جدید USB-C.",
+      "slug": "airpods-pro-2-type-c",
+      "brand": "Apple",
+      "category": "earbuds",
+      "basePrice": 14800000,
+      "compareAtPrice": 16500000,
+      "description": "حذف نویز تا دو برابر قوی‌تر، حالت شفافیت سازگار، صدای سه‌بعدی و کیس شارژ MagSafe مجهز به بلندگو و حلقه بند.",
+      "images": [
+        "/images/products/airpods-pro-2.png"
+      ],
+      "variants": [
+        {
+          "id": "var-app2-white",
+          "sku": "APP2-WHITE-USBC",
+          "colorName": "سفید براق (White)",
+          "colorEn": "White",
+          "colorHex": "#ffffff",
+          "storage": "استاندارد",
+          "price": 14800000,
+          "compareAtPrice": 16500000,
+          "stock": 12
+        }
+      ],
+      "specifications": {
+        "processor": "تراشه صوتی Apple H2 در هدفون و تراشه Apple U1 در کیس شارژ",
+        "display": "مقاوم در برابر تعریق و گرد و غبار با استاندارد IP54 برای هر دو گوشی و کیس",
+        "battery": "تا ۶ ساعت گوش دادن با ANC و تا ۳۰ ساعت همراه با کیس شارژ",
+        "ports": "کیس مجهز به درگاه USB-C و شارژ مغناطیسی MagSafe / Apple Watch Charger",
+        "weight": "۵.۳ گرم هر گوشی"
+      },
+      "rating": 4.8,
+      "reviewCount": 71,
+      "isFeatured": true,
+      "soldCount": 92,
+      "stockTotal": 12,
+      "warranty": "گارانتی ۱۸ ماهه ولترو با تضمین اصالت سری نامبر",
+      "tags": [
+        "H2 Chip",
+        "2x Active Noise Cancelling",
+        "USB-C MagSafe",
+        "IP54"
+      ],
+      "createdAt": "2026-10-13T00:56:23.252Z"
+    },
+    {
+      "id": "prod-bo-beosound-a1",
+      "name": "اسپیکر B&O Beosound A1 Gen 2",
+      "nameEn": "Bang & Olufsen Beosound A1 2nd Gen",
+      "subtitle": "اسپیکر بلوتوثی لوکس آلومینیومی دانمارکی با استاندارد ضدآب IP67.",
+      "slug": "bo-beosound-a1-gen-2",
+      "brand": "Bang & Olufsen",
+      "category": "audio",
+      "basePrice": 19800000,
+      "compareAtPrice": 22500000,
+      "description": "طراحی بی‌نظیر مینیمالیستی توسط Cecilie Manz، صدای فراگیر ۳۶۰ درجه و شارژدهی ۱۸ ساعته با پشتیبانی از دستیار صوتی الکسا.",
+      "images": [
+        "/images/products/bo-beosound-a1.png"
+      ],
+      "variants": [
+        {
+          "id": "var-bo-a1-anthracite",
+          "sku": "BO-A1-ANTHRACITE",
+          "colorName": "خاکستری ذغالی (Anthracite Oxygen)",
+          "colorEn": "Anthracite",
+          "colorHex": "#3f3f46",
+          "storage": "استاندارد",
+          "price": 19800000,
+          "compareAtPrice": 22500000,
+          "stock": 4
+        }
+      ],
+      "specifications": {
+        "processor": "آمپلی‌فایر ۲ کاناله ۳۰ وات کلاس D برای ووفر و توییتر (توان خروجی پیک ۲x۱۴۰W)",
+        "display": "آلومینیوم آنودایز شده با گریل مشبک ضدآب و بند چرم طبیعی ضدخش",
+        "battery": "تا ۱۸ ساعت پخش موسیقی مداوم در ولوم نرمال",
+        "ports": "بلوتوث ۵.۱ با کدک aptX Adaptive و درگاه Type-C",
+        "weight": "۵۵۸ گرم"
+      },
+      "rating": 4.7,
+      "reviewCount": 19,
+      "isFeatured": false,
+      "soldCount": 24,
+      "stockTotal": 4,
+      "warranty": "گارانتی ۲۴ ماهه بین‌المللی B&O",
+      "tags": [
+        "IP67 Waterproof",
+        "AptX Adaptive",
+        "Luxury Aluminum",
+        "360 Sound"
+      ],
+      "createdAt": "2026-10-13T00:56:23.252Z"
+    }
+  ],
+  "campaigns": [
+    {
+      "id": "camp-summer-luxury",
+      "title": "جشنواره فروش محدود ولترو (Flash Sale)",
+      "discountPercent": 12,
+      "startDate": "2026-10-12T00:56:23.251Z",
+      "endDate": "2026-10-15T00:56:23.251Z",
+      "isActive": true,
+      "eligibleProductIds": [
+        "prod-iphone-15-pro-max",
+        "prod-macbook-pro-16",
+        "prod-airpods-max",
+        "prod-apple-watch-ultra-2"
+      ],
+      "bannerText": "تخفیف‌های انحصاری گجت‌های پرچمدار با اعتبار محدود تا اتمام موجودی جشنواره."
+    }
+  ],
+  "carts": [
+    {
+      "userId": "usr-demo-01",
+      "items": [],
+      "updatedAt": "2026-10-13T00:56:44.714Z"
+    },
+    {
+      "userId": "usr-admin-01",
+      "items": [],
+      "updatedAt": "2026-10-13T01:20:25.287Z"
+    }
+  ],
+  "orders": [
+    {
+      "id": "ord-e711e0e7-4dd1-4d70-9c03-c3f3242db8a4",
+      "orderNumber": "#VOL-4762",
+      "userId": "usr-admin-01",
+      "userName": "مدیر ارشد ولترو",
+      "userEmail": "admin@voltro.ir",
+      "userPhone": "09121112233",
+      "items": [
+        {
+          "id": "item-029a55c6-c035-49e1-9871-c611bdc8605d",
+          "productId": "prod-apple-watch-ultra-2",
+          "productName": "اپل واچ اولترا ۲ تیتانیوم",
+          "variantId": "var-watch-u2-trail",
+          "variantTitle": "بند تریل لوپ آبی/مشکی - ۶۴ گیگابایت",
+          "price": 43472000,
+          "quantity": 2,
+          "image": "/images/products/apple-watch-ultra-2.png"
+        }
+      ],
+      "subtotal": 86944000,
+      "discountAmount": 0,
+      "shippingFee": 0,
+      "totalAmount": 86944000,
+      "status": "processing",
+      "shippingAddress": {
+        "id": "addr-1791854629902",
+        "userId": "usr-admin-01",
+        "title": "آدرس تحویل سفارش",
+        "recipientName": "مدیر ارشد ولترو",
+        "phone": "09121112233",
+        "province": "تهران",
+        "city": "تهران",
+        "postalAddress": "ئئئئ",
+        "postalCode": ""
+      },
+      "paymentMethod": "درگاه زرین‌پال شاپرک",
+      "paymentStatus": "paid",
+      "transaction": {
+        "id": "tx-8234a1fb-7c25-40b3-afdc-d42b3290e6ca",
+        "orderId": "ord-b042af6e-f132-4bc9-9753-b23b1d2e323f",
+        "amount": 86944000,
+        "status": "successful",
+        "gateway": "شاپرک / درگاه یکپارچه بانکی ولترو",
+        "trackingCode": "TRX-69242262",
+        "refId": "9839182496",
+        "createdAt": "2026-10-13T01:20:25.089Z"
+      },
+      "createdAt": "2026-10-13T01:20:25.089Z",
+      "updatedAt": "2026-10-13T01:20:25.089Z"
+    },
+    {
+      "id": "ord-1aa303a4-2902-4186-82aa-7ed5b61b7c24",
+      "orderNumber": "#VOL-4007",
+      "userId": "usr-demo-01",
+      "userName": "پوریا بهرامی",
+      "userEmail": "user@voltro.ir",
+      "userPhone": "09351234567",
+      "items": [
+        {
+          "id": "item-0d53be32-0175-4172-98f3-1e74dc3ffcd9",
+          "productId": "prod-airpods-max",
+          "productName": "هدفون اپل ایرپاد مکس",
+          "variantId": "var-max-spacegray",
+          "variantTitle": "خاکستری فضایی (Space Gray) - استاندارد",
+          "price": 37708000,
+          "quantity": 1,
+          "image": "/images/products/airpods-max.png"
+        }
+      ],
+      "subtotal": 37708000,
+      "discountAmount": 0,
+      "shippingFee": 0,
+      "totalAmount": 37708000,
+      "status": "processing",
+      "shippingAddress": {
+        "recipientName": "پوریا بهرامی",
+        "phone": "09351234567",
+        "province": "تهران",
+        "city": "تهران",
+        "postalAddress": "سعادت آباد، میدان کاج، خیابان سرو",
+        "postalCode": "1998765432"
+      },
+      "paymentMethod": "درگاه پرداخت شاپرک",
+      "paymentStatus": "paid",
+      "transaction": {
+        "id": "tx-1d25c782-4e6e-46b1-bb0c-0ee38184a3b8",
+        "orderId": "ord-5908bdb4-905a-4e07-a9fa-295187086c7a",
+        "amount": 37708000,
+        "status": "successful",
+        "gateway": "شاپرک / درگاه یکپارچه بانکی ولترو",
+        "trackingCode": "TRX-45361767",
+        "refId": "5677611271",
+        "createdAt": "2026-10-13T00:56:44.714Z"
+      },
+      "createdAt": "2026-10-13T00:56:44.714Z",
+      "updatedAt": "2026-10-13T00:56:44.714Z"
+    },
+    {
+      "id": "ord-vol-9841",
+      "orderNumber": "#VOL-۹۸۴۱",
+      "userId": "usr-demo-01",
+      "userName": "پوریا بهرامی",
+      "userEmail": "user@voltro.ir",
+      "userPhone": "09351234567",
+      "items": [
+        {
+          "id": "item-01",
+          "productId": "prod-apple-watch-ultra-2",
+          "productName": "اپل واچ اولترا ۲",
+          "variantId": "var-watch-u2-trail",
+          "variantTitle": "تیتانیوم ۴۹ میلی‌متری",
+          "price": 44500000,
+          "quantity": 1,
+          "image": "/images/products/apple-watch-ultra-2.png"
+        }
+      ],
+      "subtotal": 44500000,
+      "discountAmount": 0,
+      "shippingFee": 0,
+      "totalAmount": 44500000,
+      "status": "processing",
+      "shippingAddress": {
+        "id": "addr-01",
+        "userId": "usr-demo-01",
+        "title": "دفتر کار",
+        "recipientName": "پوریا بهرامی",
+        "phone": "09351234567",
+        "province": "تهران",
+        "city": "تهران",
+        "postalAddress": "خیابان ولیعصر، نرسیده به میدان ونک، برج نگین، واحد ۱۴۰۲",
+        "postalCode": "1969714852"
+      },
+      "paymentMethod": "درگاه آنلاین زرین‌پال شاپرک",
+      "paymentStatus": "paid",
+      "transaction": {
+        "id": "tx-9841",
+        "orderId": "ord-vol-9841",
+        "amount": 44500000,
+        "status": "successful",
+        "gateway": "Zarinpal",
+        "trackingCode": "ZP-10849204",
+        "cardPan": "6037-99**-****-8812",
+        "refId": "1098234871",
+        "createdAt": "2026-10-13T00:56:23.252Z"
+      },
+      "createdAt": "2026-10-13T00:56:23.252Z",
+      "updatedAt": "2026-10-13T00:56:23.252Z"
+    },
+    {
+      "id": "ord-vol-9840",
+      "orderNumber": "#VOL-۹۸۴۰",
+      "userId": "usr-demo-01",
+      "userName": "سارا رادمنش",
+      "userEmail": "sara.rad@example.com",
+      "userPhone": "09132223344",
+      "items": [
+        {
+          "id": "item-02",
+          "productId": "prod-airpods-max",
+          "productName": "ایرپاد مکس اپل",
+          "variantId": "var-max-spacegray",
+          "variantTitle": "خاکستری فضایی",
+          "price": 33900000,
+          "quantity": 1,
+          "image": "/images/products/airpods-max.png"
+        }
+      ],
+      "subtotal": 33900000,
+      "discountAmount": 0,
+      "shippingFee": 0,
+      "totalAmount": 33900000,
+      "status": "delivered",
+      "shippingAddress": {
+        "id": "addr-sara",
+        "userId": "usr-demo-01",
+        "title": "منزل اصفهان",
+        "recipientName": "سارا رادمنش",
+        "phone": "09132223344",
+        "province": "اصفهان",
+        "city": "اصفهان",
+        "postalAddress": "خیابان چهارباغ بالا، کوچه بهار، پلاک ۴",
+        "postalCode": "8143278910"
+      },
+      "paymentMethod": "درگاه پرداخت شاپرک",
+      "paymentStatus": "paid",
+      "createdAt": "2026-10-10T00:56:23.252Z",
+      "updatedAt": "2026-10-13T00:56:23.252Z"
+    },
+    {
+      "id": "ord-vol-9839",
+      "orderNumber": "#VOL-۹۸۳۹",
+      "userId": "usr-demo-01",
+      "userName": "علیرضا مهدوی",
+      "userEmail": "alireza.m@example.com",
+      "userPhone": "09173334455",
+      "items": [
+        {
+          "id": "item-03",
+          "productId": "prod-bo-beosound-a1",
+          "productName": "اسپیکر B&O Beosound A1 Gen 2",
+          "variantId": "var-bo-a1-anthracite",
+          "variantTitle": "A1 Gen 2",
+          "price": 19800000,
+          "quantity": 1,
+          "image": "/images/products/bo-beosound-a1.png"
+        }
+      ],
+      "subtotal": 19800000,
+      "discountAmount": 0,
+      "shippingFee": 0,
+      "totalAmount": 19800000,
+      "status": "pending",
+      "shippingAddress": {
+        "id": "addr-ali",
+        "userId": "usr-demo-01",
+        "title": "شیراز",
+        "recipientName": "علیرضا مهدوی",
+        "phone": "09173334455",
+        "province": "فارس",
+        "city": "شیراز",
+        "postalAddress": "خیابان ارم، کوچه ۶، پلاک ۲۰",
+        "postalCode": "7193612845"
+      },
+      "paymentMethod": "کارت به کارت شرکتی",
+      "paymentStatus": "unpaid",
+      "createdAt": "2026-10-08T00:56:23.252Z",
+      "updatedAt": "2026-10-13T00:56:23.252Z"
+    }
+  ],
+  "addresses": [
+    {
+      "id": "addr-01",
+      "userId": "usr-demo-01",
+      "title": "دفتر کار",
+      "recipientName": "پوریا بهرامی",
+      "phone": "09351234567",
+      "province": "تهران",
+      "city": "تهران",
+      "postalAddress": "خیابان ولیعصر، نرسیده به میدان ونک، برج نگین، واحد ۱۴۰۲",
+      "postalCode": "1969714852"
+    },
+    {
+      "id": "addr-02",
+      "userId": "usr-demo-01",
+      "title": "منزل",
+      "recipientName": "پوریا بهرامی",
+      "phone": "09351234567",
+      "province": "تهران",
+      "city": "تهران",
+      "postalAddress": "نیاوران، خیابان یاسر، کوچه بهار، پلاک ۱۲، واحد ۳",
+      "postalCode": "1975841236"
+    }
+  ],
+  "reviews": [
+    {
+      "id": "rev-01",
+      "productId": "prod-macbook-pro-16",
+      "userId": "usr-demo-01",
+      "userName": "کیان ارشدی (مهندس داده)",
+      "rating": 5,
+      "comment": "قدرت پردازش مدل‌های زبان بزرگ محلی روی M3 Max خیره‌کننده است. صفحه نمایش Liquid Retina XDR در تاریکی مطلق هیچ نشت نوری ندارد.",
+      "createdAt": "2026-10-13T00:56:23.252Z",
+      "isVerifiedPurchase": true
+    },
+    {
+      "id": "rev-02",
+      "productId": "prod-airpods-max",
+      "userId": "usr-demo-01",
+      "userName": "میترا سهرابی (آهنگساز)",
+      "rating": 5,
+      "comment": "تفکیک فرکانسی ساب‌بیس و تریبل فوق‌العاده تمیزه. نویز کنسلینگ حتی صدای مترو و شلوغی استودیو رو کامل حذف می‌کنه.",
+      "createdAt": "2026-10-13T00:56:23.252Z",
+      "isVerifiedPurchase": true
+    }
+  ],
+  "favorites": [],
+  "conversations": [
+    {
+      "id": "convo-1791854207009",
+      "userId": "usr-admin-01",
+      "title": "تت",
+      "messages": [
+        {
+          "id": "msg-1791854207009-u",
+          "role": "user",
+          "content": "تت",
+          "timestamp": "2026-10-13T01:16:47.009Z"
+        },
+        {
+          "id": "msg-1791854207009-a",
+          "role": "assistant",
+          "content": "سلام! من مشاور هوشمند خرید ولترو هستم.\n\nبر اساس محصولات فعال و موجودی انبار فروشگاه ولترو، می‌توانید موارد زیر را بپرسید:\n- **بودجه شما:** سقف هزینه مورد نظرتان را بفرمایید تا بهترین دستگاه‌ها را فیلتر کنم.\n- **مقایسه:** مقایسه دوربین یا عملکرد آیفون ۱۵ پرو مکس و سامسونگ اس ۲۴ اولترا.\n- **کاربری:** مناسب‌ترین گوشی یا لپ‌تاپ برای کاربری‌های گیمینگ، عکاسی، برنامه‌نویسی یا اداری.\n\nتمامی محصولات دارای گارانتی رسمی ۱۸ ماهه و ضمانت تعویض اصالت فیزیکی ولترو هستند. مایلید کدام دسته را بررسی کنیم؟",
+          "timestamp": "2026-10-13T01:16:47.009Z",
+          "recommendedProducts": [
+            {
+              "id": "prod-macbook-pro-16",
+              "name": "مک‌بوک پرو ۱۶ اینچ M3 Max",
+              "price": 137900000,
+              "image": "/images/products/airpods-max.png",
+              "reason": "محصول برگزیده و پرفروش ولترو"
+            },
+            {
+              "id": "prod-airpods-max",
+              "name": "هدفون اپل ایرپاد مکس",
+              "price": 42850000,
+              "image": "/images/products/airpods-max.png",
+              "reason": "محصول برگزیده و پرفروش ولترو"
+            },
+            {
+              "id": "prod-apple-watch-ultra-2",
+              "name": "اپل واچ اولترا ۲ تیتانیوم",
+              "price": 49400000,
+              "image": "/images/products/airpods-max.png",
+              "reason": "محصول برگزیده و پرفروش ولترو"
+            }
+          ]
+        }
+      ],
+      "createdAt": "2026-10-13T01:16:47.009Z",
+      "updatedAt": "2026-10-13T01:16:47.009Z"
+    }
+  ],
+  "auditLogs": [
+    {
+      "id": "audit-01",
+      "userId": "usr-admin-01",
+      "userName": "مدیر ارشد ولترو",
+      "action": "LOGIN_SUCCESS",
+      "target": "Auth System",
+      "details": "ورود موفق به پیشخوان کنترل عملیات فروشگاه",
+      "ip": "127.0.0.1",
+      "timestamp": "2026-10-13T00:56:23.252Z"
+    },
+    {
+      "id": "audit-02",
+      "userId": "usr-admin-01",
+      "userName": "مدیر ارشد ولترو",
+      "action": "UPDATE_INVENTORY",
+      "target": "prod-macbook-pro-16",
+      "details": "افزایش موجودی مدل M3 Max ۱ ترابایت به ۴ عدد",
+      "ip": "127.0.0.1",
+      "timestamp": "2026-10-13T00:56:23.252Z"
+    },
+    {
+      "id": "audit-251a32ad-09e5-4305-9828-fe1b57c56cd3",
+      "userId": "usr-admin-01",
+      "userName": "مدیر ارشد ولترو",
+      "action": "LOGIN",
+      "target": "User",
+      "details": "ورود موفق به حساب کاربری",
+      "ip": "127.0.0.1",
+      "timestamp": "2026-10-13T00:56:30.904Z"
+    },
+    {
+      "id": "audit-90778cf1-aa2a-432b-9700-82d8b0721922",
+      "userId": "usr-demo-01",
+      "userName": "پوریا بهرامی",
+      "action": "LOGIN",
+      "target": "User",
+      "details": "ورود موفق به حساب کاربری",
+      "ip": "127.0.0.1",
+      "timestamp": "2026-10-13T00:56:44.696Z"
+    },
+    {
+      "id": "audit-a4196633-11bd-4445-b463-e74edd37c12f",
+      "userId": "usr-demo-01",
+      "userName": "پوریا بهرامی",
+      "action": "CREATE_ORDER",
+      "target": "ord-1aa303a4-2902-4186-82aa-7ed5b61b7c24",
+      "details": "ثبت سفارش جدید #VOL-4007 به ارزش ۳۷٬۷۰۸٬۰۰۰ تومان",
+      "ip": "127.0.0.1",
+      "timestamp": "2026-10-13T00:56:44.715Z"
+    },
+    {
+      "id": "audit-84f21a6d-294d-4497-a1b2-2dff1b036aa6",
+      "userId": "usr-admin-01",
+      "userName": "مدیر ارشد ولترو",
+      "action": "LOGIN",
+      "target": "User",
+      "details": "ورود موفق به حساب کاربری",
+      "ip": "127.0.0.1",
+      "timestamp": "2026-10-13T01:01:05.948Z"
+    },
+    {
+      "id": "audit-23829b3e-64ca-45a7-ac13-7913478f7139",
+      "userId": "usr-admin-01",
+      "userName": "مدیر ارشد ولترو",
+      "action": "UPDATE_PRODUCT",
+      "target": "prod-macbook-pro-16",
+      "details": "بروزرسانی مشخصات محصول: مک‌بوک پرو ۱۶ اینچ M3 Max",
+      "ip": "127.0.0.1",
+      "timestamp": "2026-10-13T01:18:07.437Z"
+    },
+    {
+      "id": "audit-78222a8d-6e81-48c6-b405-bc05f0232093",
+      "userId": "usr-admin-01",
+      "userName": "مدیر ارشد ولترو",
+      "action": "CREATE_ORDER",
+      "target": "ord-e711e0e7-4dd1-4d70-9c03-c3f3242db8a4",
+      "details": "ثبت سفارش جدید #VOL-4762 به ارزش ۸۶٬۹۴۴٬۰۰۰ تومان",
+      "ip": "127.0.0.1",
+      "timestamp": "2026-10-13T01:20:25.090Z"
+    }
+  ]
+}
