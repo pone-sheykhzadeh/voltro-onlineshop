@@ -3,6 +3,7 @@ export type UserRole = 'admin' | 'customer';
 export interface User {
   id: string;
   name: string;
+  username?: string;
   email: string;
   role: UserRole;
   phone?: string;
@@ -50,6 +51,18 @@ export interface ProductSpecification {
   weight?: string;
   os?: string;
   camera?: string;
+  // Specific technical comparison fields (backward compatible)
+  chipset?: string;
+  ram?: string;
+  storage?: string;
+  displaySize?: string;
+  displayTech?: string;
+  resolution?: string;
+  refreshRate?: string;
+  mainCamera?: string;
+  frontCamera?: string;
+  batteryCapacity?: string;
+  chargingSpeed?: string;
 }
 
 export interface Review {
@@ -60,7 +73,11 @@ export interface Review {
   rating: number;
   comment: string;
   createdAt: string;
+  updatedAt?: string;
   isVerifiedPurchase?: boolean;
+  status?: 'approved' | 'pending' | 'rejected' | 'hidden';
+  helpfulCount?: number;
+  helpfulUserIds?: string[];
 }
 
 export interface Product {
@@ -75,6 +92,7 @@ export interface Product {
   compareAtPrice?: number;
   description: string;
   images: string[];
+  image?: string;
   variants: ProductVariant[];
   specifications: ProductSpecification;
   rating: number;
@@ -189,6 +207,8 @@ export interface AIMessage {
     price: number;
     image: string;
     reason?: string;
+    pros?: string[];
+    cons?: string[];
   }[];
 }
 

@@ -26,6 +26,39 @@ const SUPABASE_KEY =
   '';
 
 let supabaseClient: SupabaseClient | null = null;
+let supabaseCooldownUntil = 0;
+const SUPABASE_COOLDOWN_MS = 60_000;
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function isValidUuid(value?: string | null): boolean {
+  return typeof value === 'string' && UUID_REGEX.test(value.trim());
+}
+
+function isNetworkError(errOrMsg: unknown): boolean {
+  const msg =
+    typeof errOrMsg === 'string'
+      ? errOrMsg
+      : errOrMsg instanceof Error
+      ? `${errOrMsg.name} ${errOrMsg.message}`
+      : String(errOrMsg || '');
+  return /fetch failed|ECONNREFUSED|ETIMEDOUT|ENOTFOUND|network|AbortError/i.test(msg);
+}
+
+function getActiveSupabase(): SupabaseClient | null {
+  if (!supabaseClient) return null;
+  if (Date.now() < supabaseCooldownUntil) return null;
+  return supabaseClient;
+}
+
+function noteSupabaseFailure(errOrMsg: unknown): void {
+  if (isNetworkError(errOrMsg)) {
+    supabaseCooldownUntil = Date.now() + SUPABASE_COOLDOWN_MS;
+  }
+}
+
+function markSupabaseHealthy(): void {
+  supabaseCooldownUntil = 0;
+}
 
 if (SUPABASE_KEY && SUPABASE_KEY !== 'YOUR_SUPABASE_PUBLISHABLE_OR_ANON_KEY') {
   try {
@@ -72,17 +105,30 @@ export async function getDataConnectionStatus(): Promise<{
     };
   }
 
+  const client = getActiveSupabase();
+  if (!client) {
+    return {
+      activeDataSource: 'local_fallback',
+      supabaseConnected: false,
+      supabaseTablesCreated: false,
+      supabaseUrl: SUPABASE_URL,
+      message: 'اتصال به سرور Supabase موقتاً در دسترس نیست؛ سیستم روی دیتابیس محلی پایدار است.',
+    };
+  }
+
   try {
-    const { error } = await supabaseClient.from('products').select('id').limit(1);
+    const { error } = await client.from('products').select('id').limit(1);
     if (error) {
+      noteSupabaseFailure(error.message);
       return {
         activeDataSource: 'local_fallback',
-        supabaseConnected: true,
+        supabaseConnected: !isNetworkError(error.message),
         supabaseTablesCreated: false,
         supabaseUrl: SUPABASE_URL,
         message: `اتصال به پروژه Supabase برقرار است، اما جداول PostgreSQL در انتظار اجرای فایل مایگریشن هستند: ${error.message}`,
       };
     }
+    markSupabaseHealthy();
     return {
       activeDataSource: 'supabase',
       supabaseConnected: true,
@@ -91,6 +137,7 @@ export async function getDataConnectionStatus(): Promise<{
       message: 'پایگاه داده ابری Supabase PostgreSQL کاملاً متصل و فعال است.',
     };
   } catch (err: unknown) {
+    noteSupabaseFailure(err);
     const msg = err instanceof Error ? err.message : String(err);
     return {
       activeDataSource: 'local_fallback',
@@ -159,6 +206,64 @@ function mapProductFromSupabase(p: any, variants: any[]): Product {
   };
 }
 
+function applyProductFiltersAndSort(
+  input: Product[],
+  filters?: {
+    q?: string;
+    category?: string;
+    brand?: string;
+    sort?: string;
+    minPrice?: number;
+    maxPrice?: number;
+  }
+): Product[] {
+  let products = [...input];
+  if (filters?.category && filters.category !== 'all') {
+    products = products.filter((p) => p.category === filters.category);
+  }
+  if (filters?.brand && filters.brand !== 'all') {
+    products = products.filter((p) => p.brand === filters.brand);
+  }
+  if (filters?.minPrice) {
+    products = products.filter((p) => p.basePrice >= filters.minPrice!);
+  }
+  if (filters?.maxPrice) {
+    products = products.filter((p) => p.basePrice <= filters.maxPrice!);
+  }
+  if (filters?.q) {
+    const term = filters.q.trim().toLowerCase();
+    products = products.filter(
+      (p) =>
+        p.name.toLowerCase().includes(term) ||
+        p.nameEn.toLowerCase().includes(term) ||
+        p.description.toLowerCase().includes(term) ||
+        p.brand.toLowerCase().includes(term) ||
+        p.tags.some((t) => t.toLowerCase().includes(term))
+    );
+  }
+
+  if (filters?.sort) {
+    switch (filters.sort) {
+      case 'price-asc':
+        products.sort((a, b) => a.basePrice - b.basePrice);
+        break;
+      case 'price-desc':
+        products.sort((a, b) => b.basePrice - a.basePrice);
+        break;
+      case 'rating':
+        products.sort((a, b) => b.rating - a.rating);
+        break;
+      case 'popular':
+        products.sort((a, b) => (b.soldCount || 0) - (a.soldCount || 0));
+        break;
+      case 'newest':
+        products.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        break;
+    }
+  }
+  return products;
+}
+
 export async function getProductsFromSupabase(filters?: {
   q?: string;
   category?: string;
@@ -167,10 +272,11 @@ export async function getProductsFromSupabase(filters?: {
   minPrice?: number;
   maxPrice?: number;
 }): Promise<Product[]> {
-  if (!supabaseClient) return db.getProducts();
+  const client = getActiveSupabase();
+  if (!client) return applyProductFiltersAndSort(db.getProducts(), filters);
 
   try {
-    let query = supabaseClient.from('products').select('*');
+    let query = client.from('products').select('*');
     if (filters?.category && filters.category !== 'all') {
       query = query.eq('category', filters.category);
     }
@@ -186,91 +292,73 @@ export async function getProductsFromSupabase(filters?: {
 
     const { data: productsData, error: pErr } = await query;
     if (pErr || !productsData) {
-      console.warn('[VOLTRO Supabase] getProducts query fallback:', pErr?.message);
-      return db.getProducts();
+      if (pErr) noteSupabaseFailure(pErr.message);
+      return applyProductFiltersAndSort(db.getProducts(), filters);
     }
 
-    const { data: variantsData } = await supabaseClient.from('product_variants').select('*');
+    markSupabaseHealthy();
+    const { data: variantsData } = await client.from('product_variants').select('*');
     const variants = variantsData || [];
 
-    let products: Product[] = productsData.map((p) => mapProductFromSupabase(p, variants));
-
-    if (filters?.q) {
-      const term = filters.q.trim().toLowerCase();
-      products = products.filter(
-        (p) =>
-          p.name.toLowerCase().includes(term) ||
-          p.nameEn.toLowerCase().includes(term) ||
-          p.description.toLowerCase().includes(term) ||
-          p.brand.toLowerCase().includes(term) ||
-          p.tags.some((t) => t.toLowerCase().includes(term))
-      );
-    }
-
-    if (filters?.sort) {
-      switch (filters.sort) {
-        case 'price-asc':
-          products.sort((a, b) => a.basePrice - b.basePrice);
-          break;
-        case 'price-desc':
-          products.sort((a, b) => b.basePrice - a.basePrice);
-          break;
-        case 'rating':
-          products.sort((a, b) => b.rating - a.rating);
-          break;
-        case 'popular':
-          products.sort((a, b) => (b.soldCount || 0) - (a.soldCount || 0));
-          break;
-        case 'newest':
-          products.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-          break;
-      }
-    }
-
-    return products;
+    const products: Product[] = productsData.map((p) => mapProductFromSupabase(p, variants));
+    return applyProductFiltersAndSort(products, filters);
   } catch (err) {
-    console.error('[VOLTRO Supabase] getProducts error:', err);
-    return db.getProducts();
+    noteSupabaseFailure(err);
+    return applyProductFiltersAndSort(db.getProducts(), filters);
   }
 }
 
 export async function getProductByIdFromSupabase(id: string): Promise<Product | undefined> {
-  if (!supabaseClient) return db.getProductById(id);
+  const client = getActiveSupabase();
+  if (!client) return db.getProductById(id);
 
   try {
-    const { data: p, error } = await supabaseClient.from('products').select('*').eq('id', id).maybeSingle();
+    const { data: p, error } = await client.from('products').select('*').eq('id', id).maybeSingle();
     if (error || !p) {
+      if (error) noteSupabaseFailure(error.message);
       return db.getProductById(id);
     }
 
-    const { data: variants } = await supabaseClient.from('product_variants').select('*').eq('product_id', id);
+    markSupabaseHealthy();
+    const { data: variants } = await client.from('product_variants').select('*').eq('product_id', id);
     return mapProductFromSupabase(p, variants || []);
   } catch (err) {
-    console.error('[VOLTRO Supabase] getProductById error:', err);
+    noteSupabaseFailure(err);
     return db.getProductById(id);
   }
 }
 
 export async function updateInventoryStockInSupabase(productId: string, stock: number, user: any): Promise<boolean> {
-  if (!supabaseClient) {
+  const client = getActiveSupabase();
+  if (!client) {
     db.updateProduct(productId, { stockTotal: stock }, user);
+    await addAuditLogInSupabase(user.id, user.name, 'UPDATE_INVENTORY', productId, `تغییر موجودی کالا به ${stock}`);
     return true;
   }
 
   try {
-    const { error: pErr } = await supabaseClient.from('products').update({ stock_total: stock }).eq('id', productId);
-    if (pErr) console.warn('[VOLTRO Supabase] Product stock update warning:', pErr.message);
-
-    const { data: vars } = await supabaseClient.from('product_variants').select('id').eq('product_id', productId).limit(1);
-    if (vars && vars.length > 0) {
-      await supabaseClient.from('product_variants').update({ stock }).eq('id', vars[0].id);
+    const { error: pErr } = await client.from('products').update({ stock_total: stock }).eq('id', productId);
+    if (pErr) {
+      noteSupabaseFailure(pErr.message);
+      if (!isNetworkError(pErr.message)) {
+        console.warn('[VOLTRO Supabase] Product stock update warning:', pErr.message);
+      }
+    } else {
+      markSupabaseHealthy();
+      const { data: vars } = await client.from('product_variants').select('id').eq('product_id', productId).limit(1);
+      if (vars && vars.length > 0) {
+        await client.from('product_variants').update({ stock }).eq('id', vars[0].id);
+      }
     }
 
     db.updateProduct(productId, { stockTotal: stock }, user);
     await addAuditLogInSupabase(user.id, user.name, 'UPDATE_INVENTORY', productId, `تغییر موجودی کالا به ${stock}`);
     return true;
   } catch (err) {
-    console.error('[VOLTRO Supabase] updateInventoryStock error:', err);
+    noteSupabaseFailure(err);
+    if (!isNetworkError(err)) {
+      console.error('[VOLTRO Supabase] updateInventoryStock error:', err);
+    }
     db.updateProduct(productId, { stockTotal: stock }, user);
     return true;
   }
@@ -281,11 +369,16 @@ export async function updateInventoryStockInSupabase(productId: string, stock: n
 // ==============================================================================
 
 export async function getCategoriesFromSupabase(): Promise<Category[]> {
-  if (!supabaseClient) return db.getCategories();
+  const client = getActiveSupabase();
+  if (!client) return db.getCategories();
 
   try {
-    const { data, error } = await supabaseClient.from('categories').select('*');
-    if (error || !data || data.length === 0) return db.getCategories();
+    const { data, error } = await client.from('categories').select('*');
+    if (error || !data || data.length === 0) {
+      if (error) noteSupabaseFailure(error.message);
+      return db.getCategories();
+    }
+    markSupabaseHealthy();
     return data.map((c) => ({
       id: c.id,
       name: c.name,
@@ -296,16 +389,22 @@ export async function getCategoriesFromSupabase(): Promise<Category[]> {
       itemCount: c.item_count || 0,
     }));
   } catch (err) {
+    noteSupabaseFailure(err);
     return db.getCategories();
   }
 }
 
 export async function getBrandsFromSupabase(): Promise<Brand[]> {
-  if (!supabaseClient) return db.getBrands();
+  const client = getActiveSupabase();
+  if (!client) return db.getBrands();
 
   try {
-    const { data, error } = await supabaseClient.from('brands').select('*');
-    if (error || !data || data.length === 0) return db.getBrands();
+    const { data, error } = await client.from('brands').select('*');
+    if (error || !data || data.length === 0) {
+      if (error) noteSupabaseFailure(error.message);
+      return db.getBrands();
+    }
+    markSupabaseHealthy();
     return data.map((b) => ({
       id: b.id,
       name: b.name,
@@ -313,21 +412,27 @@ export async function getBrandsFromSupabase(): Promise<Brand[]> {
       logo: b.logo || undefined,
     }));
   } catch (err) {
+    noteSupabaseFailure(err);
     return db.getBrands();
   }
 }
 
 export async function getActiveCampaignFromSupabase(): Promise<FlashCampaign | null> {
-  if (!supabaseClient) return db.getActiveCampaign() || null;
+  const client = getActiveSupabase();
+  if (!client) return db.getActiveCampaign() || null;
 
   try {
-    const { data, error } = await supabaseClient
+    const { data, error } = await client
       .from('flash_campaigns')
       .select('*')
       .eq('is_active', true)
       .maybeSingle();
 
-    if (error || !data) return db.getActiveCampaign() || null;
+    if (error || !data) {
+      if (error) noteSupabaseFailure(error.message);
+      return db.getActiveCampaign() || null;
+    }
+    markSupabaseHealthy();
     return {
       id: data.id,
       title: data.title,
@@ -339,18 +444,24 @@ export async function getActiveCampaignFromSupabase(): Promise<FlashCampaign | n
       bannerText: data.banner_text || undefined,
     };
   } catch (err) {
+    noteSupabaseFailure(err);
     return db.getActiveCampaign() || null;
   }
 }
 
 export async function getCampaignsFromSupabase(): Promise<FlashCampaign[]> {
-  if (!supabaseClient) return db.getCampaigns();
+  const client = getActiveSupabase();
+  if (!client) return db.getCampaigns();
   try {
-    const { data, error } = await supabaseClient
+    const { data, error } = await client
       .from('flash_campaigns')
       .select('*')
       .order('created_at', { ascending: false });
-    if (error || !data || data.length === 0) return db.getCampaigns();
+    if (error || !data || data.length === 0) {
+      if (error) noteSupabaseFailure(error.message);
+      return db.getCampaigns();
+    }
+    markSupabaseHealthy();
     return data.map((c) => ({
       id: c.id,
       title: c.title,
@@ -362,14 +473,16 @@ export async function getCampaignsFromSupabase(): Promise<FlashCampaign[]> {
       bannerText: c.banner_text || undefined,
     }));
   } catch (err) {
+    noteSupabaseFailure(err);
     return db.getCampaigns();
   }
 }
 
 export async function saveCampaignInSupabase(campaign: FlashCampaign, adminUser: any): Promise<void> {
-  if (supabaseClient) {
+  const client = getActiveSupabase();
+  if (client) {
     try {
-      await supabaseClient.from('flash_campaigns').upsert({
+      const { error } = await client.from('flash_campaigns').upsert({
         id: campaign.id,
         title: campaign.title,
         discount_percent: campaign.discountPercent,
@@ -380,8 +493,16 @@ export async function saveCampaignInSupabase(campaign: FlashCampaign, adminUser:
         banner_text: campaign.bannerText || null,
         updated_at: new Date().toISOString(),
       });
+      if (error) {
+        noteSupabaseFailure(error.message);
+      } else {
+        markSupabaseHealthy();
+      }
     } catch (err) {
-      console.warn('[VOLTRO Supabase] saveCampaign warning:', err);
+      noteSupabaseFailure(err);
+      if (!isNetworkError(err)) {
+        console.warn('[VOLTRO Supabase] saveCampaign warning:', err);
+      }
     }
   }
   const existing = db.getCampaigns().find((c) => c.id === campaign.id);
@@ -433,10 +554,11 @@ function mapOrderFromSupabase(o: any, items: any[]): Order {
 }
 
 export async function getOrdersFromSupabase(userId?: string, isAdmin?: boolean, userEmail?: string): Promise<Order[]> {
-  if (!supabaseClient) return db.getOrders(isAdmin ? undefined : userId);
+  const client = getActiveSupabase();
+  if (!client) return db.getOrders(isAdmin ? undefined : userId);
 
   try {
-    let query = supabaseClient.from('orders').select('*').order('created_at', { ascending: false });
+    let query = client.from('orders').select('*').order('created_at', { ascending: false });
     if (!isAdmin && userId) {
       if (userEmail) {
         query = query.or(`user_id.eq.${userId},user_email.eq.${userEmail}`);
@@ -447,17 +569,19 @@ export async function getOrdersFromSupabase(userId?: string, isAdmin?: boolean, 
 
     const { data: ordersData, error: oErr } = await query;
     if (oErr || !ordersData) {
-      console.warn('[VOLTRO Supabase] getOrders fallback:', oErr?.message);
+      if (oErr) noteSupabaseFailure(oErr.message);
       return db.getOrders(isAdmin ? undefined : userId);
     }
 
+    markSupabaseHealthy();
+    if (ordersData.length === 0) return [];
     const orderIds = ordersData.map((o) => o.id);
-    const { data: itemsData } = await supabaseClient.from('order_items').select('*').in('order_id', orderIds);
+    const { data: itemsData } = await client.from('order_items').select('*').in('order_id', orderIds);
     const items = itemsData || [];
 
     return ordersData.map((o) => mapOrderFromSupabase(o, items));
   } catch (err) {
-    console.error('[VOLTRO Supabase] getOrders error:', err);
+    noteSupabaseFailure(err);
     return db.getOrders(isAdmin ? undefined : userId);
   }
 }
@@ -547,9 +671,10 @@ export async function createOrderInSupabase(
     updatedAt: new Date().toISOString(),
   };
 
-  if (supabaseClient) {
+  const client = getActiveSupabase();
+  if (client) {
     try {
-      const { error: oErr } = await supabaseClient.from('orders').insert({
+      const { error: oErr } = await client.from('orders').insert({
         id: newOrder.id,
         order_number: newOrder.orderNumber,
         user_id: newOrder.userId,
@@ -570,10 +695,14 @@ export async function createOrderInSupabase(
       });
 
       if (oErr) {
-        console.error('[VOLTRO Supabase] Order insert error:', oErr.message);
+        noteSupabaseFailure(oErr.message);
+        if (!isNetworkError(oErr.message)) {
+          console.error('[VOLTRO Supabase] Order insert error:', oErr.message);
+        }
       } else {
+        markSupabaseHealthy();
         for (const it of verifiedItems) {
-          await supabaseClient.from('order_items').insert({
+          await client.from('order_items').insert({
             id: it.id,
             order_id: newOrder.id,
             product_id: it.productId,
@@ -585,13 +714,13 @@ export async function createOrderInSupabase(
             image: it.image || null,
           });
 
-          const { data: vRow } = await supabaseClient.from('product_variants').select('stock').eq('id', it.variantId).single();
+          const { data: vRow } = await client.from('product_variants').select('stock').eq('id', it.variantId).single();
           if (vRow) {
-            await supabaseClient.from('product_variants').update({ stock: Math.max(0, vRow.stock - it.quantity) }).eq('id', it.variantId);
+            await client.from('product_variants').update({ stock: Math.max(0, vRow.stock - it.quantity) }).eq('id', it.variantId);
           }
-          const { data: pRow } = await supabaseClient.from('products').select('stock_total, sold_count').eq('id', it.productId).single();
+          const { data: pRow } = await client.from('products').select('stock_total, sold_count').eq('id', it.productId).single();
           if (pRow) {
-            await supabaseClient.from('products').update({
+            await client.from('products').update({
               stock_total: Math.max(0, pRow.stock_total - it.quantity),
               sold_count: (pRow.sold_count || 0) + it.quantity,
             }).eq('id', it.productId);
@@ -599,7 +728,10 @@ export async function createOrderInSupabase(
         }
       }
     } catch (err) {
-      console.error('[VOLTRO Supabase] createOrder error:', err);
+      noteSupabaseFailure(err);
+      if (!isNetworkError(err)) {
+        console.error('[VOLTRO Supabase] createOrder error:', err);
+      }
     }
   }
 
@@ -619,11 +751,17 @@ export async function createOrderInSupabase(
 }
 
 export async function updateOrderStatusInSupabase(orderId: string, status: Order['status'], adminUser: any): Promise<boolean> {
-  if (supabaseClient) {
+  const client = getActiveSupabase();
+  if (client) {
     try {
-      await supabaseClient.from('orders').update({ status, updated_at: new Date().toISOString() }).eq('id', orderId);
+      const { error } = await client.from('orders').update({ status, updated_at: new Date().toISOString() }).eq('id', orderId);
+      if (error) noteSupabaseFailure(error.message);
+      else markSupabaseHealthy();
     } catch (err) {
-      console.warn('[VOLTRO Supabase] Order status update warning:', err);
+      noteSupabaseFailure(err);
+      if (!isNetworkError(err)) {
+        console.warn('[VOLTRO Supabase] Order status update warning:', err);
+      }
     }
   }
   db.updateOrderStatus(orderId, status, adminUser);
@@ -636,39 +774,52 @@ export async function updateOrderStatusInSupabase(orderId: string, status: Order
 // ==============================================================================
 
 export async function getFavoritesFromSupabase(userId: string): Promise<Product[]> {
-  if (!supabaseClient) return db.getFavorites(userId);
+  const client = getActiveSupabase();
+  if (!client) return db.getFavorites(userId);
 
   try {
-    const { data: favs, error } = await supabaseClient.from('favorites').select('product_id').eq('user_id', userId);
-    if (error || !favs) return db.getFavorites(userId);
+    const { data: favs, error } = await client.from('favorites').select('product_id').eq('user_id', userId);
+    if (error || !favs) {
+      if (error) noteSupabaseFailure(error.message);
+      return db.getFavorites(userId);
+    }
 
+    markSupabaseHealthy();
     const productIds = favs.map((f) => f.product_id);
     if (productIds.length === 0) return [];
 
     const products = await getProductsFromSupabase();
     return products.filter((p) => productIds.includes(p.id));
   } catch (err) {
+    noteSupabaseFailure(err);
     return db.getFavorites(userId);
   }
 }
 
 export async function toggleFavoriteInSupabase(userId: string, productId: string): Promise<{ isFavorite: boolean }> {
-  if (!supabaseClient) return db.toggleFavorite(userId, productId);
+  const client = getActiveSupabase();
+  if (!client) return db.toggleFavorite(userId, productId);
 
   try {
-    const { data: existing } = await supabaseClient
+    const { data: existing, error } = await client
       .from('favorites')
       .select('id')
       .eq('user_id', userId)
       .eq('product_id', productId)
       .maybeSingle();
 
+    if (error) {
+      noteSupabaseFailure(error.message);
+      return db.toggleFavorite(userId, productId);
+    }
+
+    markSupabaseHealthy();
     if (existing) {
-      await supabaseClient.from('favorites').delete().eq('id', existing.id);
+      await client.from('favorites').delete().eq('id', existing.id);
       db.toggleFavorite(userId, productId);
       return { isFavorite: false };
     } else {
-      await supabaseClient.from('favorites').insert({
+      await client.from('favorites').insert({
         user_id: userId,
         product_id: productId,
         added_at: new Date().toISOString(),
@@ -677,6 +828,7 @@ export async function toggleFavoriteInSupabase(userId: string, productId: string
       return { isFavorite: true };
     }
   } catch (err) {
+    noteSupabaseFailure(err);
     return db.toggleFavorite(userId, productId);
   }
 }
@@ -686,23 +838,42 @@ export async function toggleFavoriteInSupabase(userId: string, productId: string
 // ==============================================================================
 
 export async function getAdminMetricsFromSupabase(): Promise<any> {
-  if (!supabaseClient) return db.getAdminMetrics();
+  const client = getActiveSupabase();
+  if (!client) {
+    const local = db.getAdminMetrics();
+    return {
+      ...local,
+      connectionStatus: {
+        activeDataSource: 'local_fallback',
+        supabaseConnected: false,
+        supabaseTablesCreated: false,
+        supabaseUrl: SUPABASE_URL,
+        message: 'سیستم روی پایگاه داده محلی پایدار فعال است.',
+      },
+    };
+  }
 
   try {
-    const { data: deliveredOrders } = await supabaseClient.from('orders').select('*').eq('status', 'delivered');
+    const { data: deliveredOrders, error: dErr } = await client.from('orders').select('*').eq('status', 'delivered');
+    if (dErr) {
+      noteSupabaseFailure(dErr.message);
+      const local = db.getAdminMetrics();
+      return { ...local, connectionStatus: await getDataConnectionStatus() };
+    }
+    markSupabaseHealthy();
     const delivered = deliveredOrders || [];
 
     const totalDeliveredCount = delivered.length;
     const totalRevenue = delivered.reduce((sum, o) => sum + Number(o.total_amount || 0), 0);
     const aov = totalDeliveredCount > 0 ? Math.round(totalRevenue / totalDeliveredCount) : 0;
 
-    const { data: prods } = await supabaseClient.from('products').select('*');
+    const { data: prods } = await client.from('products').select('*');
     const allProducts = prods || [];
     const totalInventoryStock = allProducts.reduce((sum, p) => sum + Number(p.stock_total || 0), 0);
     const activeProducts = allProducts.length;
     const lowStockCount = allProducts.filter((p) => Number(p.stock_total || 0) <= 3).length;
 
-    const { data: allOrders } = await supabaseClient.from('orders').select('*').order('created_at', { ascending: false }).limit(5);
+    const { data: allOrders } = await client.from('orders').select('*').order('created_at', { ascending: false }).limit(5);
 
     const connectionStatus = await getDataConnectionStatus();
 
@@ -742,7 +913,7 @@ export async function getAdminMetricsFromSupabase(): Promise<any> {
       connectionStatus,
     };
   } catch (err) {
-    console.error('[VOLTRO Supabase] getAdminMetrics error:', err);
+    noteSupabaseFailure(err);
     const local = db.getAdminMetrics();
     const connectionStatus = await getDataConnectionStatus();
     return { ...local, connectionStatus };
@@ -761,9 +932,10 @@ export async function addAuditLogInSupabase(
   details?: string,
   ip?: string
 ): Promise<void> {
-  if (supabaseClient) {
+  const client = getActiveSupabase();
+  if (client) {
     try {
-      await supabaseClient.from('audit_logs').insert({
+      await client.from('audit_logs').insert({
         user_id: userId,
         user_name: userName,
         action,
@@ -773,18 +945,23 @@ export async function addAuditLogInSupabase(
         timestamp: new Date().toISOString(),
       });
     } catch (e) {
-      // non-blocking
+      noteSupabaseFailure(e);
     }
   }
   db.addAuditLog(userId, userName, action, target || 'General', details || '', ip);
 }
 
 export async function getAuditLogsFromSupabase(): Promise<AuditLog[]> {
-  if (!supabaseClient) return db.getAuditLogs();
+  const client = getActiveSupabase();
+  if (!client) return db.getAuditLogs();
 
   try {
-    const { data } = await supabaseClient.from('audit_logs').select('*').order('timestamp', { ascending: false }).limit(50);
-    if (!data || data.length === 0) return db.getAuditLogs();
+    const { data, error } = await client.from('audit_logs').select('*').order('timestamp', { ascending: false }).limit(50);
+    if (error || !data || data.length === 0) {
+      if (error) noteSupabaseFailure(error.message);
+      return db.getAuditLogs();
+    }
+    markSupabaseHealthy();
     return data.map((l) => ({
       id: l.id,
       userId: l.user_id,
@@ -796,6 +973,7 @@ export async function getAuditLogsFromSupabase(): Promise<AuditLog[]> {
       timestamp: l.timestamp,
     }));
   } catch (err) {
+    noteSupabaseFailure(err);
     return db.getAuditLogs();
   }
 }
@@ -804,111 +982,170 @@ export async function getAuditLogsFromSupabase(): Promise<AuditLog[]> {
 // 7. USER AUTHENTICATION & PROFILES
 // ==============================================================================
 
-export async function authenticateOrMigrateUser(email: string, password: string): Promise<{
+export async function authenticateOrMigrateUser(
+  identifier: string,
+  password: string
+): Promise<{
   success: boolean;
   user?: any;
   error?: string;
 }> {
-  if (!supabaseClient) {
-    const user = db.getUserByEmail(email);
-    if (!user) return { success: false, error: 'ایمیل یا کلمه عبور اشتباه است.' };
+  const cleanIdentifier = identifier.trim().toLowerCase();
+  const internalEmail = cleanIdentifier.includes('@') ? cleanIdentifier : `${cleanIdentifier}@voltro.local`;
+
+  const client = getActiveSupabase();
+  if (!client) {
+    const user = db.getUserByUsernameOrEmail(cleanIdentifier);
+    if (!user) return { success: false, error: 'نام کاربری یا کلمه عبور اشتباه است.' };
     const valid = verifyPassword(password, user.salt, user.passwordHash);
-    if (!valid) return { success: false, error: 'ایمیل یا کلمه عبور اشتباه است.' };
-    return { success: true, user };
+    if (!valid) return { success: false, error: 'نام کاربری یا کلمه عبور اشتباه است.' };
+    return {
+      success: true,
+      user: {
+        ...user,
+        username: user.username || user.email,
+        role: cleanIdentifier === 'admin@voltro.ir' ? 'admin' : user.role,
+      },
+    };
   }
 
   try {
     // 1. Try native Supabase Auth sign-in
-    const { data: authData, error: authError } = await supabaseClient.auth.signInWithPassword({
-      email,
+    const { data: authData, error: authErr } = await client.auth.signInWithPassword({
+      email: internalEmail,
       password,
     });
+    if (authErr) noteSupabaseFailure(authErr.message);
 
     if (authData && authData.user) {
-      const { data: profile } = await supabaseClient.from('user_profiles').select('*').eq('email', email).maybeSingle();
+      markSupabaseHealthy();
+      const { data: profile } = await client
+        .from('user_profiles')
+        .select('*')
+        .eq('email', internalEmail)
+        .maybeSingle();
+
+      const localMatch = db.getUserByUsernameOrEmail(cleanIdentifier);
+      const resolvedRole =
+        cleanIdentifier === 'admin@voltro.ir'
+          ? 'admin'
+          : profile?.role || authData.user.user_metadata?.role || localMatch?.role || 'customer';
+
       return {
         success: true,
         user: {
           id: authData.user.id,
-          name: profile?.name || authData.user.user_metadata?.name || 'کاربر ولترو',
+          name: profile?.name || authData.user.user_metadata?.name || localMatch?.name || 'کاربر ولترو',
+          username: localMatch?.username || cleanIdentifier,
           email: authData.user.email!,
-          role: profile?.role || authData.user.user_metadata?.role || 'customer',
-          phone: profile?.phone || authData.user.user_metadata?.phone || '',
-          avatar: profile?.avatar_url || '',
+          role: resolvedRole,
+          phone: profile?.phone || authData.user.user_metadata?.phone || localMatch?.phone || '',
+          avatar: profile?.avatar_url || localMatch?.avatar || '',
         },
       };
     }
 
-    // 2. JIT Password Migration for existing local accounts (never plaintext in transit/storage)
-    const localUser = db.getUserByEmail(email);
+    // 2. Local account verification & JIT Supabase migration
+    const localUser = db.getUserByUsernameOrEmail(cleanIdentifier);
     if (localUser) {
       const valid = verifyPassword(password, localUser.salt, localUser.passwordHash);
       if (valid) {
-        const { data: created } = await supabaseClient.auth.admin.createUser({
-          email: localUser.email,
-          password,
-          email_confirm: true,
-          user_metadata: {
-            name: localUser.name,
-            role: localUser.role,
-            phone: localUser.phone || '',
-          },
-        });
-
-        if (created && created.user) {
-          await supabaseClient.from('user_profiles').upsert(
-            {
-              auth_id: created.user.id,
+        const userRole = cleanIdentifier === 'admin@voltro.ir' ? 'admin' : localUser.role;
+        const activeAfterSignIn = getActiveSupabase();
+        if (activeAfterSignIn) {
+          const { data: created, error: cErr } = await activeAfterSignIn.auth.admin.createUser({
+            email: localUser.email,
+            password,
+            email_confirm: true,
+            user_metadata: {
               name: localUser.name,
-              email: localUser.email,
-              role: localUser.role,
+              username: localUser.username || localUser.email,
+              role: userRole,
               phone: localUser.phone || '',
             },
-            { onConflict: 'email' }
-          );
+          });
+          if (cErr) noteSupabaseFailure(cErr.message);
 
-          return {
-            success: true,
-            user: {
-              id: created.user.id,
-              name: localUser.name,
-              email: localUser.email,
-              role: localUser.role,
-              phone: localUser.phone || '',
-              avatar: localUser.avatar || '',
-            },
-          };
+          if (created && created.user) {
+            await activeAfterSignIn.from('user_profiles').upsert(
+              {
+                auth_id: created.user.id,
+                name: localUser.name,
+                email: localUser.email,
+                role: userRole,
+                phone: localUser.phone || '',
+              },
+              { onConflict: 'email' }
+            );
+
+            return {
+              success: true,
+              user: {
+                id: created.user.id,
+                name: localUser.name,
+                username: localUser.username || localUser.email,
+                email: localUser.email,
+                role: userRole,
+                phone: localUser.phone || '',
+                avatar: localUser.avatar || '',
+              },
+            };
+          }
         }
+
+        return {
+          success: true,
+          user: {
+            ...localUser,
+            username: localUser.username || localUser.email,
+            role: userRole,
+          },
+        };
       }
     }
 
-    return { success: false, error: 'ایمیل یا کلمه عبور اشتباه است.' };
+    return { success: false, error: 'نام کاربری یا کلمه عبور اشتباه است.' };
   } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : String(err);
-    console.error('[VOLTRO Supabase Auth] Login error:', msg);
-    const user = db.getUserByEmail(email);
-    if (!user) return { success: false, error: 'ایمیل یا کلمه عبور اشتباه است.' };
+    noteSupabaseFailure(err);
+    const user = db.getUserByUsernameOrEmail(cleanIdentifier);
+    if (!user) return { success: false, error: 'نام کاربری یا کلمه عبور اشتباه است.' };
     const valid = verifyPassword(password, user.salt, user.passwordHash);
-    if (!valid) return { success: false, error: 'ایمیل یا کلمه عبور اشتباه است.' };
-    return { success: true, user };
+    if (!valid) return { success: false, error: 'نام کاربری یا کلمه عبور اشتباه است.' };
+    return {
+      success: true,
+      user: {
+        ...user,
+        username: user.username || user.email,
+        role: cleanIdentifier === 'admin@voltro.ir' ? 'admin' : user.role,
+      },
+    };
   }
 }
 
 export async function registerUserWithSupabase(
   name: string,
-  email: string,
+  username: string,
   password: string,
-  phone?: string
+  phone: string
 ): Promise<{ success: boolean; user?: any; error?: string }> {
-  if (!supabaseClient) {
-    const exists = db.getUserByEmail(email);
-    if (exists) return { success: false, error: 'این ایمیل قبلاً در سیستم ثبت شده است.' };
+  const cleanUsername = username.trim().toLowerCase();
+  const internalEmail = cleanUsername.includes('@') ? cleanUsername : `${cleanUsername}@voltro.local`;
+  const cleanPhone = phone.trim();
+
+  const existingLocal = db.getUserByUsernameOrEmail(cleanUsername);
+  if (existingLocal) {
+    return { success: false, error: 'این نام کاربری قبلاً در سیستم ثبت شده است.' };
+  }
+
+  const client = getActiveSupabase();
+  if (!client) {
     const { salt, hash } = generatePasswordHash(password);
     const user = db.createUser({
       name,
-      email,
+      username: cleanUsername,
+      email: internalEmail,
       role: 'customer',
-      phone: phone || '',
+      phone: cleanPhone,
       salt,
       passwordHash: hash,
     });
@@ -916,27 +1153,39 @@ export async function registerUserWithSupabase(
   }
 
   try {
-    const { data: created, error } = await supabaseClient.auth.admin.createUser({
-      email,
+    const { data: created, error } = await client.auth.admin.createUser({
+      email: internalEmail,
       password,
       email_confirm: true,
-      user_metadata: { name, role: 'customer', phone: phone || '' },
+      user_metadata: { name, username: cleanUsername, role: 'customer', phone: cleanPhone },
     });
 
-    if (error) {
-      if (error.message.includes('already registered')) {
-        return { success: false, error: 'این ایمیل قبلاً در سیستم ثبت شده است.' };
+    if (error || !created?.user) {
+      if (error) noteSupabaseFailure(error.message);
+      if (error?.message?.includes('already registered')) {
+        return { success: false, error: 'این نام کاربری قبلاً در سیستم ثبت شده است.' };
       }
-      return { success: false, error: error.message };
+      const { salt, hash } = generatePasswordHash(password);
+      const user = db.createUser({
+        name,
+        username: cleanUsername,
+        email: internalEmail,
+        role: 'customer',
+        phone: cleanPhone,
+        salt,
+        passwordHash: hash,
+      });
+      return { success: true, user };
     }
 
-    await supabaseClient.from('user_profiles').upsert(
+    markSupabaseHealthy();
+    await client.from('user_profiles').upsert(
       {
         auth_id: created.user.id,
         name,
-        email,
+        email: internalEmail,
         role: 'customer',
-        phone: phone || '',
+        phone: cleanPhone,
       },
       { onConflict: 'email' }
     );
@@ -944,9 +1193,10 @@ export async function registerUserWithSupabase(
     const { salt, hash } = generatePasswordHash(password);
     db.createUser({
       name,
-      email,
+      username: cleanUsername,
+      email: internalEmail,
       role: 'customer',
-      phone: phone || '',
+      phone: cleanPhone,
       salt,
       passwordHash: hash,
     });
@@ -956,20 +1206,21 @@ export async function registerUserWithSupabase(
       user: {
         id: created.user.id,
         name,
-        email,
+        username: cleanUsername,
+        email: internalEmail,
         role: 'customer',
-        phone: phone || '',
+        phone: cleanPhone,
       },
     };
   } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : String(err);
-    console.error('[VOLTRO Supabase Auth] Register error:', msg);
+    noteSupabaseFailure(err);
     const { salt, hash } = generatePasswordHash(password);
     const user = db.createUser({
       name,
-      email,
+      username: cleanUsername,
+      email: internalEmail,
       role: 'customer',
-      phone: phone || '',
+      phone: cleanPhone,
       salt,
       passwordHash: hash,
     });
@@ -986,10 +1237,11 @@ export async function uploadImageToSupabaseStorage(
   buffer: Buffer,
   contentType: string = 'image/png'
 ): Promise<string | null> {
-  if (!supabaseClient) return null;
+  const client = getActiveSupabase();
+  if (!client) return null;
 
   try {
-    const { error: uploadError } = await supabaseClient.storage
+    const { error: uploadError } = await client.storage
       .from(bucket)
       .upload(storagePath, buffer, {
         contentType,
@@ -997,17 +1249,24 @@ export async function uploadImageToSupabaseStorage(
       });
 
     if (uploadError) {
-      console.error('[VOLTRO Storage] Upload error:', uploadError.message);
+      noteSupabaseFailure(uploadError.message);
+      if (!isNetworkError(uploadError.message)) {
+        console.error('[VOLTRO Storage] Upload error:', uploadError.message);
+      }
       return null;
     }
 
-    const { data: publicUrlData } = supabaseClient.storage
+    markSupabaseHealthy();
+    const { data: publicUrlData } = client.storage
       .from(bucket)
       .getPublicUrl(storagePath);
 
     return publicUrlData.publicUrl;
   } catch (err) {
-    console.error('[VOLTRO Storage] Unexpected upload failure:', err);
+    noteSupabaseFailure(err);
+    if (!isNetworkError(err)) {
+      console.error('[VOLTRO Storage] Unexpected upload failure:', err);
+    }
     return null;
   }
 }
@@ -1017,14 +1276,19 @@ export async function uploadImageToSupabaseStorage(
 // ==============================================================================
 
 export async function getCartFromSupabase(userId: string): Promise<CartItem[]> {
-  if (!supabaseClient || !userId || userId === 'guest-user') {
+  const client = getActiveSupabase();
+  if (!client || !userId || userId === 'guest-user' || !isValidUuid(userId)) {
     return db.getCart(userId || 'guest-user');
   }
 
   try {
     let rawItems: Array<{ id: string; productId: string; variantId: string; quantity: number }> = [];
-    const { data: userData, error } = await supabaseClient.auth.admin.getUserById(userId);
-    if (!error && userData?.user?.user_metadata?.cart) {
+    const { data: userData, error } = await client.auth.admin.getUserById(userId);
+    if (error) {
+      noteSupabaseFailure(error.message);
+      return db.getCart(userId);
+    }
+    if (userData?.user?.user_metadata?.cart) {
       rawItems = userData.user.user_metadata.cart;
     } else {
       return db.getCart(userId);
@@ -1054,7 +1318,7 @@ export async function getCartFromSupabase(userId: string): Promise<CartItem[]> {
 
     return resolvedItems;
   } catch (err) {
-    console.warn('[VOLTRO Supabase] getCart warning:', err);
+    noteSupabaseFailure(err);
     return db.getCart(userId);
   }
 }
@@ -1064,13 +1328,18 @@ export async function saveCartInSupabase(
   items: Array<{ id?: string; productId: string; variantId: string; quantity: number }>
 ): Promise<CartItem[]> {
   db.saveCart(userId, items);
-  if (!supabaseClient || !userId || userId === 'guest-user') {
+  const client = getActiveSupabase();
+  if (!client || !userId || userId === 'guest-user' || !isValidUuid(userId)) {
     return db.getCart(userId || 'guest-user');
   }
 
   try {
-    const { data: userData, error } = await supabaseClient.auth.admin.getUserById(userId);
-    if (!error && userData?.user) {
+    const { data: userData, error } = await client.auth.admin.getUserById(userId);
+    if (error) {
+      noteSupabaseFailure(error.message);
+      return db.getCart(userId);
+    }
+    if (userData?.user) {
       const meta = userData.user.user_metadata || {};
       const cleanItems = items.map((i) => ({
         id: i.id || `cart-${Math.random().toString(36).substring(2, 9)}`,
@@ -1079,7 +1348,7 @@ export async function saveCartInSupabase(
         quantity: Math.max(1, i.quantity),
         addedAt: new Date().toISOString(),
       }));
-      await supabaseClient.auth.admin.updateUserById(userId, {
+      await client.auth.admin.updateUserById(userId, {
         user_metadata: {
           ...meta,
           cart: cleanItems,
@@ -1087,7 +1356,7 @@ export async function saveCartInSupabase(
       });
     }
   } catch (err) {
-    console.warn('[VOLTRO Supabase] saveCart warning:', err);
+    noteSupabaseFailure(err);
   }
 
   return getCartFromSupabase(userId);
@@ -1098,14 +1367,19 @@ export async function saveCartInSupabase(
 // ==============================================================================
 
 export async function getAddressesFromSupabase(userId: string): Promise<Address[]> {
-  if (!supabaseClient) return db.getAddresses(userId);
+  const client = getActiveSupabase();
+  if (!client) return db.getAddresses(userId);
   try {
-    const { data, error } = await supabaseClient
+    const { data, error } = await client
       .from('addresses')
       .select('*')
       .eq('user_id', userId)
       .order('created_at', { ascending: false });
-    if (error || !data) return db.getAddresses(userId);
+    if (error || !data) {
+      if (error) noteSupabaseFailure(error.message);
+      return db.getAddresses(userId);
+    }
+    markSupabaseHealthy();
     return data.map((a) => ({
       id: a.id,
       userId: a.user_id,
@@ -1118,15 +1392,17 @@ export async function getAddressesFromSupabase(userId: string): Promise<Address[
       postalCode: a.postal_code || '',
     }));
   } catch (err) {
+    noteSupabaseFailure(err);
     return db.getAddresses(userId);
   }
 }
 
 export async function addAddressInSupabase(addressData: Omit<Address, 'id'>): Promise<Address> {
   const localAddr = db.addAddress(addressData);
-  if (!supabaseClient) return localAddr;
+  const client = getActiveSupabase();
+  if (!client) return localAddr;
   try {
-    const { data, error } = await supabaseClient
+    const { data, error } = await client
       .from('addresses')
       .insert({
         id: localAddr.id,
@@ -1141,7 +1417,10 @@ export async function addAddressInSupabase(addressData: Omit<Address, 'id'>): Pr
       })
       .select()
       .maybeSingle();
-    if (data) {
+    if (error) {
+      noteSupabaseFailure(error.message);
+    } else if (data) {
+      markSupabaseHealthy();
       return {
         id: data.id,
         userId: data.user_id,
@@ -1155,22 +1434,32 @@ export async function addAddressInSupabase(addressData: Omit<Address, 'id'>): Pr
       };
     }
   } catch (err) {
-    console.warn('[VOLTRO Supabase] addAddress warning:', err);
+    noteSupabaseFailure(err);
+    if (!isNetworkError(err)) {
+      console.warn('[VOLTRO Supabase] addAddress warning:', err);
+    }
   }
   return localAddr;
 }
 
 export async function deleteAddressInSupabase(userId: string, addressId: string): Promise<boolean> {
   const localOk = db.deleteAddress(userId, addressId);
-  if (!supabaseClient) return localOk;
+  const client = getActiveSupabase();
+  if (!client) return localOk;
   try {
-    const { error } = await supabaseClient
+    const { error } = await client
       .from('addresses')
       .delete()
       .eq('id', addressId)
       .eq('user_id', userId);
-    return !error;
+    if (error) {
+      noteSupabaseFailure(error.message);
+      return isNetworkError(error.message) ? localOk : false;
+    }
+    markSupabaseHealthy();
+    return true;
   } catch (err) {
+    noteSupabaseFailure(err);
     return localOk;
   }
 }
@@ -1179,15 +1468,42 @@ export async function deleteAddressInSupabase(userId: string, addressId: string)
 // 10. REVIEWS
 // ==============================================================================
 
-export async function getReviewsFromSupabase(productId: string): Promise<Review[]> {
-  if (!supabaseClient) return db.getReviews(productId);
+export async function getReviewsFromSupabase(
+  productId: string,
+  options?: { page?: number; limit?: number; status?: 'approved' | 'all'; sortBy?: string }
+): Promise<Review[]> {
+  const localList = db.getReviews(productId, options);
+  const client = getActiveSupabase();
+  if (!client) return localList;
   try {
-    const { data, error } = await supabaseClient
+    let query = client
       .from('reviews')
       .select('*')
-      .eq('product_id', productId)
-      .order('created_at', { ascending: false });
-    if (error || !data || data.length === 0) return db.getReviews(productId);
+      .eq('product_id', productId);
+
+    if (options?.status !== 'all') {
+      // filter out hidden reviews if status column exists
+      query = query.or('status.eq.approved,status.is.null');
+    }
+
+    if (options?.sortBy === 'highest-rating') {
+      query = query.order('rating', { ascending: false }).order('created_at', { ascending: false });
+    } else {
+      query = query.order('created_at', { ascending: false });
+    }
+
+    if (options?.limit && options.limit > 0) {
+      const page = Math.max(1, options.page || 1);
+      const from = (page - 1) * options.limit;
+      query = query.range(from, from + options.limit - 1);
+    }
+
+    const { data, error } = await query;
+    if (error || !data || data.length === 0) {
+      if (error) noteSupabaseFailure(error.message);
+      return localList;
+    }
+    markSupabaseHealthy();
     return data.map((r) => ({
       id: r.id,
       productId: r.product_id,
@@ -1197,30 +1513,198 @@ export async function getReviewsFromSupabase(productId: string): Promise<Review[
       comment: r.comment,
       isVerifiedPurchase: Boolean(r.is_verified_purchase),
       createdAt: r.created_at,
+      updatedAt: r.updated_at || r.created_at,
+      status: r.status || 'approved',
+      helpfulCount: Number(r.helpful_count || 0),
+      helpfulUserIds: r.helpful_user_ids || [],
     }));
   } catch (err) {
-    return db.getReviews(productId);
+    noteSupabaseFailure(err);
+    return localList;
   }
 }
 
 export async function addReviewInSupabase(reviewData: Omit<Review, 'id' | 'createdAt'>): Promise<Review> {
   const localRev = db.addReview(reviewData);
-  if (!supabaseClient) return localRev;
+  const client = getActiveSupabase();
+  if (!client) return localRev;
   try {
-    await supabaseClient.from('reviews').insert({
+    const { error } = await client.from('reviews').upsert({
       id: localRev.id,
       product_id: reviewData.productId,
       user_id: reviewData.userId,
       user_name: reviewData.userName,
       rating: reviewData.rating,
       comment: reviewData.comment,
-      is_verified_purchase: reviewData.isVerifiedPurchase ?? true,
+      is_verified_purchase: localRev.isVerifiedPurchase ?? true,
+      status: localRev.status || 'approved',
+      helpful_count: localRev.helpfulCount || 0,
+      updated_at: new Date().toISOString(),
     });
+    if (error) noteSupabaseFailure(error.message);
+    else markSupabaseHealthy();
   } catch (err) {
-    console.warn('[VOLTRO Supabase] addReview warning:', err);
+    noteSupabaseFailure(err);
+    if (!isNetworkError(err)) {
+      console.warn('[VOLTRO Supabase] addReview warning:', err);
+    }
   }
   return localRev;
 }
+
+export async function updateReviewInSupabase(
+  reviewId: string,
+  userId: string,
+  updateData: { rating?: number; comment?: string },
+  isAdmin = false
+): Promise<{ success: boolean; review?: Review; error?: string }> {
+  const localResult = db.updateReview(reviewId, userId, updateData, isAdmin);
+  if (!localResult.success) return localResult;
+
+  const client = getActiveSupabase();
+  if (client) {
+    try {
+      const payload: any = { updated_at: new Date().toISOString() };
+      if (updateData.rating !== undefined) payload.rating = Number(updateData.rating);
+      if (updateData.comment !== undefined) payload.comment = updateData.comment.trim();
+
+      let query = client.from('reviews').update(payload).eq('id', reviewId);
+      if (!isAdmin) {
+        query = query.eq('user_id', userId);
+      }
+      const { error } = await query;
+      if (error) noteSupabaseFailure(error.message);
+      else markSupabaseHealthy();
+    } catch (err) {
+      noteSupabaseFailure(err);
+      if (!isNetworkError(err)) {
+        console.warn('[VOLTRO Supabase] updateReview warning:', err);
+      }
+    }
+  }
+
+  return localResult;
+}
+
+export async function deleteReviewInSupabase(
+  reviewId: string,
+  userId: string,
+  isAdmin = false
+): Promise<{ success: boolean; error?: string }> {
+  const localResult = db.deleteReview(reviewId, userId, isAdmin);
+  if (!localResult.success) return localResult;
+
+  const client = getActiveSupabase();
+  if (client) {
+    try {
+      let query = client.from('reviews').delete().eq('id', reviewId);
+      if (!isAdmin) {
+        query = query.eq('user_id', userId);
+      }
+      const { error } = await query;
+      if (error) noteSupabaseFailure(error.message);
+      else markSupabaseHealthy();
+    } catch (err) {
+      noteSupabaseFailure(err);
+      if (!isNetworkError(err)) {
+        console.warn('[VOLTRO Supabase] deleteReview warning:', err);
+      }
+    }
+  }
+
+  return localResult;
+}
+
+export async function toggleHelpfulReviewInSupabase(
+  reviewId: string,
+  userId: string
+): Promise<{ success: boolean; helpfulCount: number; hasVoted: boolean }> {
+  const localResult = db.toggleHelpfulReview(reviewId, userId);
+  if (!localResult.success) return localResult;
+
+  const client = getActiveSupabase();
+  if (client) {
+    try {
+      const { error } = await client
+        .from('reviews')
+        .update({
+          helpful_count: localResult.helpfulCount,
+        })
+        .eq('id', reviewId);
+      if (error) noteSupabaseFailure(error.message);
+      else markSupabaseHealthy();
+    } catch (err) {
+      noteSupabaseFailure(err);
+      if (!isNetworkError(err)) {
+        console.warn('[VOLTRO Supabase] toggleHelpful warning:', err);
+      }
+    }
+  }
+
+  return localResult;
+}
+
+export async function getAllReviewsFromSupabase(): Promise<Review[]> {
+  const localList = db.getAllReviews();
+  const client = getActiveSupabase();
+  if (!client) return localList;
+  try {
+    const { data, error } = await client
+      .from('reviews')
+      .select('*')
+      .order('created_at', { ascending: false });
+    if (error || !data || data.length === 0) {
+      if (error) noteSupabaseFailure(error.message);
+      return localList;
+    }
+    markSupabaseHealthy();
+    return data.map((r) => ({
+      id: r.id,
+      productId: r.product_id,
+      userId: r.user_id,
+      userName: r.user_name,
+      rating: Number(r.rating),
+      comment: r.comment,
+      isVerifiedPurchase: Boolean(r.is_verified_purchase),
+      createdAt: r.created_at,
+      updatedAt: r.updated_at || r.created_at,
+      status: r.status || 'approved',
+      helpfulCount: Number(r.helpful_count || 0),
+      helpfulUserIds: r.helpful_user_ids || [],
+    }));
+  } catch (err) {
+    noteSupabaseFailure(err);
+    return localList;
+  }
+}
+
+export async function updateReviewStatusInSupabase(
+  reviewId: string,
+  status: 'approved' | 'hidden' | 'rejected' | 'pending'
+): Promise<{ success: boolean; review?: Review; error?: string }> {
+  const localResult = db.updateReviewStatus(reviewId, status);
+  if (!localResult.success) return localResult;
+
+  const client = getActiveSupabase();
+  if (client) {
+    try {
+      const { error } = await client
+        .from('reviews')
+        .update({ status })
+        .eq('id', reviewId);
+      if (error) noteSupabaseFailure(error.message);
+      else markSupabaseHealthy();
+    } catch (err) {
+      noteSupabaseFailure(err);
+      if (!isNetworkError(err)) {
+        console.warn('[VOLTRO Supabase] updateReviewStatus warning:', err);
+      }
+    }
+  }
+
+  return localResult;
+}
+
 
 // ==============================================================================
 // 11. PRODUCT CRUD FOR ADMIN
@@ -1247,14 +1731,21 @@ export async function createProductInSupabase(
     .replace(/^-+|-+$/g, '') || `product-${Date.now()}`;
   let slug = productData.slug || cleanBaseSlug;
 
-  if (supabaseClient) {
+  const client = getActiveSupabase();
+  if (client) {
     try {
       // Check slug uniqueness in Supabase
-      const { data: existingSlug } = await supabaseClient
+      const { data: existingSlug, error: slugErr } = await client
         .from('products')
         .select('id')
         .eq('slug', slug)
         .maybeSingle();
+
+      if (slugErr && isNetworkError(slugErr.message)) {
+        noteSupabaseFailure(slugErr.message);
+        const localProd = db.createProduct({ ...productData, id, slug, basePrice, compareAtPrice, stockTotal }, adminUser);
+        return { success: true, product: localProd };
+      }
 
       if (existingSlug && existingSlug.id !== id) {
         slug = `${cleanBaseSlug}-${Date.now().toString().slice(-4)}`;
@@ -1273,7 +1764,7 @@ export async function createProductInSupabase(
         camera: productData.camera || 'سیستم دوربین پیشرفته',
       };
 
-      const { error: pError } = await supabaseClient.from('products').insert({
+      const { error: pError } = await client.from('products').insert({
         id,
         name: productData.name,
         name_en: productData.nameEn || productData.name,
@@ -1297,9 +1788,26 @@ export async function createProductInSupabase(
       });
 
       if (pError) {
+        noteSupabaseFailure(pError.message);
+        if (isNetworkError(pError.message)) {
+          const localProd = db.createProduct({
+            ...productData,
+            id,
+            slug,
+            basePrice,
+            compareAtPrice,
+            stockTotal,
+            images,
+            tags,
+            specifications,
+          }, adminUser);
+          return { success: true, product: localProd };
+        }
         console.error('[VOLTRO Supabase] createProduct failed:', pError.message);
         return { success: false, error: `خطا در ذخیره کالا در دیتابیس Supabase: ${pError.message}` };
       }
+
+      markSupabaseHealthy();
 
       // Prepare and insert variants
       const variants = Array.isArray(productData.variants) && productData.variants.length > 0
@@ -1320,7 +1828,7 @@ export async function createProductInSupabase(
           ];
 
       for (const v of variants) {
-        const { error: vError } = await supabaseClient.from('product_variants').insert({
+        const { error: vError } = await client.from('product_variants').insert({
           id: v.id || `var-${Math.random().toString(36).substring(2, 9)}`,
           product_id: id,
           color_name: v.colorName || 'استاندارد',
@@ -1362,14 +1870,19 @@ export async function createProductInSupabase(
       const created = await getProductByIdFromSupabase(id);
       return { success: true, product: created || localProd };
     } catch (err: unknown) {
+      noteSupabaseFailure(err);
+      if (isNetworkError(err)) {
+        const localProd = db.createProduct({ ...productData, id, slug, basePrice, compareAtPrice, stockTotal }, adminUser);
+        return { success: true, product: localProd };
+      }
       const msg = err instanceof Error ? err.message : String(err);
       console.error('[VOLTRO Supabase] Unexpected createProduct error:', msg);
       return { success: false, error: `خطای غیرمنتظره در ثبت کالا: ${msg}` };
     }
   }
 
-  // Fallback if Supabase client not present
-  const localProd = db.createProduct(productData, adminUser);
+  // Fallback if Supabase client not present or in cooldown
+  const localProd = db.createProduct({ ...productData, id, slug, basePrice, compareAtPrice, stockTotal }, adminUser);
   return { success: true, product: localProd };
 }
 
@@ -1380,7 +1893,8 @@ export async function updateProductInSupabase(
 ): Promise<{ success: boolean; product?: Product; error?: string }> {
   const localUpdated = db.updateProduct(id, updates, adminUser);
 
-  if (supabaseClient) {
+  const client = getActiveSupabase();
+  if (client) {
     try {
       const payload: any = { updated_at: new Date().toISOString() };
       if (updates.name !== undefined) payload.name = updates.name;
@@ -1400,15 +1914,20 @@ export async function updateProductInSupabase(
       if (updates.images !== undefined) payload.images = updates.images;
       if (updates.specifications !== undefined) payload.specifications = updates.specifications;
 
-      const { error: pError } = await supabaseClient.from('products').update(payload).eq('id', id);
+      const { error: pError } = await client.from('products').update(payload).eq('id', id);
       if (pError) {
+        noteSupabaseFailure(pError.message);
+        if (isNetworkError(pError.message)) {
+          return { success: !!localUpdated, product: localUpdated };
+        }
         console.error('[VOLTRO Supabase] updateProduct error:', pError.message);
         return { success: false, error: pError.message };
       }
 
+      markSupabaseHealthy();
       if (updates.variants && Array.isArray(updates.variants)) {
         for (const v of updates.variants) {
-          await supabaseClient.from('product_variants').upsert({
+          await client.from('product_variants').upsert({
             id: v.id,
             product_id: id,
             color_name: v.colorName || 'استاندارد',
@@ -1425,6 +1944,10 @@ export async function updateProductInSupabase(
       const freshProduct = await getProductByIdFromSupabase(id);
       return { success: true, product: freshProduct || localUpdated };
     } catch (err: unknown) {
+      noteSupabaseFailure(err);
+      if (isNetworkError(err)) {
+        return { success: !!localUpdated, product: localUpdated };
+      }
       const msg = err instanceof Error ? err.message : String(err);
       console.error('[VOLTRO Supabase] Unexpected updateProduct error:', msg);
       return { success: false, error: msg };
@@ -1436,14 +1959,24 @@ export async function updateProductInSupabase(
 
 export async function deleteProductInSupabase(id: string, adminUser: any): Promise<{ success: boolean; error?: string }> {
   const localOk = db.deleteProduct(id, adminUser);
-  if (supabaseClient) {
+  const client = getActiveSupabase();
+  if (client) {
     try {
-      const { error } = await supabaseClient.from('products').delete().eq('id', id);
+      const { error } = await client.from('products').delete().eq('id', id);
       if (error) {
+        noteSupabaseFailure(error.message);
+        if (isNetworkError(error.message)) {
+          return { success: localOk };
+        }
         console.error('[VOLTRO Supabase] deleteProduct failed:', error.message);
         return { success: false, error: error.message };
       }
+      markSupabaseHealthy();
     } catch (err: unknown) {
+      noteSupabaseFailure(err);
+      if (isNetworkError(err)) {
+        return { success: localOk };
+      }
       const msg = err instanceof Error ? err.message : String(err);
       console.warn('[VOLTRO Supabase] deleteProduct exception:', msg);
       return { success: false, error: msg };
@@ -1453,7 +1986,7 @@ export async function deleteProductInSupabase(id: string, adminUser: any): Promi
 }
 
 export function getSupabaseClient(): SupabaseClient | null {
-  return supabaseClient;
+  return getActiveSupabase();
 }
 
 export async function syncOAuthUserWithSupabase(
@@ -1462,7 +1995,8 @@ export async function syncOAuthUserWithSupabase(
   name?: string,
   avatar?: string
 ): Promise<{ success: boolean; user?: any; error?: string }> {
-  if (!supabaseClient) {
+  const client = getActiveSupabase();
+  if (!client) {
     let localUser = db.getUserByEmail(email);
     if (!localUser) {
       localUser = db.createUser({
@@ -1478,16 +2012,22 @@ export async function syncOAuthUserWithSupabase(
   }
 
   try {
-    const { data: existingProfile } = await supabaseClient
+    const { data: existingProfile, error } = await client
       .from('user_profiles')
       .select('*')
       .eq('email', email)
       .maybeSingle();
 
+    if (error) {
+      noteSupabaseFailure(error.message);
+    } else {
+      markSupabaseHealthy();
+    }
+
     const role = existingProfile?.role || (email === 'admin@voltro.ir' ? 'admin' : 'customer');
     const fullName = existingProfile?.name || name || email.split('@')[0];
 
-    await supabaseClient.from('user_profiles').upsert(
+    await client.from('user_profiles').upsert(
       {
         auth_id: authId,
         email,
@@ -1529,8 +2069,11 @@ export async function syncOAuthUserWithSupabase(
       },
     };
   } catch (err: unknown) {
+    noteSupabaseFailure(err);
     const msg = err instanceof Error ? err.message : String(err);
-    console.error('[VOLTRO Supabase] Error syncing OAuth user:', msg);
+    if (!isNetworkError(err)) {
+      console.error('[VOLTRO Supabase] Error syncing OAuth user:', msg);
+    }
     return { success: false, error: msg };
   }
 }

@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import type { Product } from '../types/index.ts';
 import { useCart } from '../context/CartContext.tsx';
 import { useFavorites } from '../context/FavoritesContext.tsx';
+import { useComparison } from '../context/ComparisonContext.tsx';
 import { formatPrice } from '../utils/format.ts';
 
 interface CatalogPageProps {
@@ -12,6 +13,7 @@ interface CatalogPageProps {
 export const CatalogPage: React.FC<CatalogPageProps> = ({ onNavigate, initialQuery = '' }) => {
   const [products, setProducts] = useState<Product[]>([]);
   const [search, setSearch] = useState(initialQuery);
+  const [debouncedSearch, setDebouncedSearch] = useState(initialQuery);
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [selectedBrand, setSelectedBrand] = useState('all');
   const [sortBy, setSortBy] = useState('popular');
@@ -19,11 +21,20 @@ export const CatalogPage: React.FC<CatalogPageProps> = ({ onNavigate, initialQue
 
   const { addToCart } = useCart();
   const { isFavorite, toggleFavorite } = useFavorites();
+  const { isInComparison, addToComparison, removeFromComparison } = useComparison();
+
+  // Debounce search input by 300ms to eliminate redundant requests and re-renders
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(search);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [search]);
 
   useEffect(() => {
     setIsLoading(true);
     const params = new URLSearchParams();
-    if (search) params.append('q', search);
+    if (debouncedSearch) params.append('q', debouncedSearch);
     if (selectedCategory !== 'all') params.append('category', selectedCategory);
     if (selectedBrand !== 'all') params.append('brand', selectedBrand);
     if (sortBy) params.append('sort', sortBy);
@@ -35,7 +46,7 @@ export const CatalogPage: React.FC<CatalogPageProps> = ({ onNavigate, initialQue
       })
       .catch((err) => console.error(err))
       .finally(() => setIsLoading(false));
-  }, [search, selectedCategory, selectedBrand, sortBy]);
+  }, [debouncedSearch, selectedCategory, selectedBrand, sortBy]);
 
   const categories = [
     { id: 'all', label: 'همه دسته‌ها' },
@@ -156,20 +167,40 @@ export const CatalogPage: React.FC<CatalogPageProps> = ({ onNavigate, initialQue
                     <span className="font-mono text-[10px] px-2.5 py-0.5 rounded-full bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-500/20 font-semibold">
                       {item.brand}
                     </span>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        toggleFavorite(item);
-                      }}
-                      title={isFavorite(item.id) ? 'حذف از علاقه‌مندی‌ها' : 'افزودن به علاقه‌مندی‌ها'}
-                      className={`w-7 h-7 rounded-full transition-all flex items-center justify-center cursor-pointer shadow-xs border ${
-                        isFavorite(item.id)
-                          ? 'bg-rose-50 dark:bg-rose-500/10 text-rose-500 border-rose-200 dark:border-rose-500/20'
-                          : 'bg-slate-100 dark:bg-zinc-800/60 text-slate-400 dark:text-zinc-400 hover:text-rose-500 border-slate-200 dark:border-white/[0.06]'
-                      }`}
-                    >
-                      <span className="material-symbols-outlined text-base">favorite</span>
-                    </button>
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (isInComparison(item.id)) {
+                            removeFromComparison(item.id);
+                          } else {
+                            addToComparison(item);
+                          }
+                        }}
+                        title={isInComparison(item.id) ? 'حذف از مقایسه' : 'افزودن به مقایسه'}
+                        className={`w-7 h-7 rounded-full transition-all flex items-center justify-center cursor-pointer shadow-xs border ${
+                          isInComparison(item.id)
+                            ? 'bg-amber-50 dark:bg-amber-500/20 text-amber-500 border-amber-300 dark:border-amber-500/40'
+                            : 'bg-slate-100 dark:bg-zinc-800/60 text-slate-400 dark:text-zinc-400 hover:text-amber-500 border-slate-200 dark:border-white/[0.06]'
+                        }`}
+                      >
+                        <span className="material-symbols-outlined text-base">compare_arrows</span>
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleFavorite(item);
+                        }}
+                        title={isFavorite(item.id) ? 'حذف از علاقه‌مندی‌ها' : 'افزودن به علاقه‌مندی‌ها'}
+                        className={`w-7 h-7 rounded-full transition-all flex items-center justify-center cursor-pointer shadow-xs border ${
+                          isFavorite(item.id)
+                            ? 'bg-rose-50 dark:bg-rose-500/10 text-rose-500 border-rose-200 dark:border-rose-500/20'
+                            : 'bg-slate-100 dark:bg-zinc-800/60 text-slate-400 dark:text-zinc-400 hover:text-rose-500 border-slate-200 dark:border-white/[0.06]'
+                        }`}
+                      >
+                        <span className="material-symbols-outlined text-base">favorite</span>
+                      </button>
+                    </div>
                   </div>
 
                   <div
@@ -179,6 +210,8 @@ export const CatalogPage: React.FC<CatalogPageProps> = ({ onNavigate, initialQue
                     <img
                       src={item.images[0]}
                       alt={item.name}
+                      loading="lazy"
+                      decoding="async"
                       className="product-cutout max-h-32 w-auto object-contain group-hover:scale-105 transition-transform duration-300"
                     />
                   </div>

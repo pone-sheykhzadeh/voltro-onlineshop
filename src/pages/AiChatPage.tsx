@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import type { AIMessage } from '../types/index.ts';
 import { useToast } from '../context/ToastContext.tsx';
+import { useComparison } from '../context/ComparisonContext.tsx';
 
 interface AiChatPageProps {
   onNavigate: (path: string, productId?: string) => void;
@@ -12,6 +13,7 @@ export const AiChatPage: React.FC<AiChatPageProps> = ({ onNavigate }) => {
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { showToast } = useToast();
+  const { isInComparison, addToComparison, removeFromComparison, allProducts } = useComparison();
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -236,30 +238,102 @@ export const AiChatPage: React.FC<AiChatPageProps> = ({ onNavigate }) => {
 
                   {/* Render Recommended Product Cards inside assistant response */}
                   {msg.recommendedProducts && msg.recommendedProducts.length > 0 && (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 mt-2">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
                       {msg.recommendedProducts.map((p) => (
                         <div
                           key={p.id}
-                          onClick={() => onNavigate('product-details', p.id)}
-                          className="cursor-pointer p-3 rounded-xl border flex items-center gap-3 transition-all hover:border-blue-500/50 bg-slate-50 dark:bg-[#161619] border-slate-200 dark:border-white/[0.06]"
+                          className="p-3.5 rounded-2xl border flex flex-col gap-2.5 transition-all bg-slate-50 dark:bg-[#161619] border-slate-200 dark:border-white/[0.08] shadow-sm hover:border-amber-500/40"
                         >
-                          <img
-                            src={p.image}
-                            alt={p.name}
-                            className="product-cutout w-12 h-12 object-contain shrink-0"
-                          />
-                          <div className="flex flex-col min-w-0">
-                            <span className="text-xs font-semibold text-slate-900 dark:text-white truncate">
-                              {p.name}
-                            </span>
-                            <span className="font-mono text-[11px] text-blue-400 font-bold">
-                              {p.price.toLocaleString('en-US')} تومان
-                            </span>
-                            {p.reason && (
-                              <span className="text-[10px] text-zinc-400 truncate mt-0.5">
-                                {p.reason}
+                          <div
+                            onClick={() => onNavigate('product-details', p.id)}
+                            className="flex items-center gap-3 cursor-pointer group"
+                          >
+                            <img
+                              src={p.image}
+                              alt={p.name}
+                              loading="lazy"
+                              decoding="async"
+                              className="product-cutout w-14 h-14 object-contain rounded-xl bg-white dark:bg-zinc-900 p-1 shrink-0 border border-slate-200 dark:border-zinc-800"
+                            />
+                            <div className="flex flex-col min-w-0">
+                              <span className="text-xs font-bold text-slate-900 dark:text-white truncate group-hover:text-blue-500 transition-colors">
+                                {p.name}
                               </span>
-                            )}
+                              <span className="font-mono text-xs text-amber-500 font-bold mt-0.5">
+                                {p.price.toLocaleString('fa-IR')} تومان
+                              </span>
+                              {p.reason && (
+                                <span className="text-[11px] text-zinc-500 dark:text-zinc-400 line-clamp-1 mt-0.5">
+                                  {p.reason}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Pros & Cons tags if present */}
+                          {((p.pros && p.pros.length > 0) || (p.cons && p.cons.length > 0)) && (
+                            <div className="flex flex-col gap-1.5 pt-1 border-t border-slate-200/60 dark:border-white/[0.04]">
+                              {p.pros && p.pros.length > 0 && (
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                  <span className="text-[10px] text-emerald-500 font-semibold shrink-0">مزایا:</span>
+                                  {p.pros.slice(0, 2).map((pro, idx) => (
+                                    <span
+                                      key={idx}
+                                      className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20"
+                                    >
+                                      + {pro}
+                                    </span>
+                                  ))}
+                                </div>
+                              )}
+                              {p.cons && p.cons.length > 0 && (
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                  <span className="text-[10px] text-amber-500 font-semibold shrink-0">نکته:</span>
+                                  {p.cons.slice(0, 1).map((con, idx) => (
+                                    <span
+                                      key={idx}
+                                      className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20"
+                                    >
+                                      ! {con}
+                                    </span>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          )}
+
+                          {/* Action buttons */}
+                          <div className="flex items-center gap-2 pt-1">
+                            <button
+                              type="button"
+                              onClick={() => onNavigate('product-details', p.id)}
+                              className="flex-1 py-1.5 px-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold transition-colors text-center cursor-pointer"
+                            >
+                              مشاهده و خرید
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const fullProd = allProducts.find((item) => item.id === p.id);
+                                if (fullProd) {
+                                  if (isInComparison(p.id)) {
+                                    removeFromComparison(p.id);
+                                  } else {
+                                    addToComparison(fullProd);
+                                  }
+                                } else {
+                                  onNavigate('product-details', p.id);
+                                }
+                              }}
+                              title={isInComparison(p.id) ? 'حذف از مقایسه' : 'افزودن به مقایسه'}
+                              className={`p-1.5 rounded-lg border text-xs transition-colors cursor-pointer ${
+                                isInComparison(p.id)
+                                  ? 'bg-amber-500/20 text-amber-400 border-amber-500/30'
+                                  : 'bg-zinc-800 text-zinc-300 border-zinc-700 hover:text-amber-400'
+                              }`}
+                            >
+                              <span className="material-symbols-outlined text-base">compare_arrows</span>
+                            </button>
                           </div>
                         </div>
                       ))}

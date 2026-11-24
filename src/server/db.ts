@@ -74,7 +74,7 @@ function ensureDbDir() {
   }
 }
 
-// Generate rich initial seed data matching Stitch layouts
+// Generate initial catalog and account seed data
 function getSeedData(): VoltroDatabase {
   const adminCreds = generatePasswordHash('Admin@123456');
   const userCreds = generatePasswordHash('User@123456');
@@ -558,10 +558,11 @@ function getSeedData(): VoltroDatabase {
     {
       id: 'usr-admin-01',
       name: 'مدیر ارشد ولترو',
+      username: 'admin@voltro.ir',
       email: 'admin@voltro.ir',
       role: 'admin',
       phone: '09121112233',
-      avatar: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDDFf26GXqr-2c3bJ3L1A3MwQX5syyjKNU29_8haSa6wY-ehOAyVT9h0KPPuqZyBeNW-3ZtlnhTQBGbWqAJunHAjm8IELD3Oij-0TKsEVXjgxxSMai0bjZ-a5vjlTaCyC0etuntG4xCLek869jGnUh_zAsTDnZvcGknpApu4InT2qhAaD6_L9EuZXj58x38FBEJTE--zSBsugndzEPNdZBaU1y84sO1B3O1_AoHFWVNCpzx1F7Rflc',
+      avatar: '',
       passwordHash: adminCreds.hash,
       salt: adminCreds.salt,
       createdAt: new Date().toISOString(),
@@ -569,10 +570,11 @@ function getSeedData(): VoltroDatabase {
     {
       id: 'usr-demo-01',
       name: 'پوریا بهرامی',
+      username: 'user@voltro.ir',
       email: 'user@voltro.ir',
       role: 'customer',
       phone: '09351234567',
-      avatar: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDDFf26GXqr-2c3bJ3L1A3MwQX5syyjKNU29_8haSa6wY-ehOAyVT9h0KPPuqZyBeNW-3ZtlnhTQBGbWqAJunHAjm8IELD3Oij-0TKsEVXjgxxSMai0bjZ-a5vjlTaCyC0etuntG4xCLek869jGnUh_zAsTDnZvcGknpApu4InT2qhAaD6_L9EuZXj58x38FBEJTE--zSBsugndzEPNdZBaU1y84sO1B3O1_AoHFWVNCpzx1F7Rflc',
+      avatar: '',
       passwordHash: userCreds.hash,
       salt: userCreds.salt,
       createdAt: new Date().toISOString(),
@@ -860,7 +862,19 @@ class DatabaseManager {
   }
 
   getUserByEmail(email: string): StoredUser | undefined {
-    return this.data.users.find((u) => u.email.toLowerCase() === email.toLowerCase());
+    const clean = email.trim().toLowerCase();
+    return this.data.users.find(
+      (u) => u.email.toLowerCase() === clean || (u.username && u.username.toLowerCase() === clean)
+    );
+  }
+
+  getUserByUsernameOrEmail(identifier: string): StoredUser | undefined {
+    const clean = identifier.trim().toLowerCase();
+    return this.data.users.find(
+      (u) =>
+        (u.username && u.username.toLowerCase() === clean) ||
+        u.email.toLowerCase() === clean
+    );
   }
 
   createUser(userData: Omit<StoredUser, 'id' | 'createdAt'>): StoredUser {
@@ -1132,29 +1146,191 @@ class DatabaseManager {
   }
 
   // --- Reviews ---
-  getReviews(productId: string): Review[] {
-    return this.data.reviews.filter((r) => r.productId === productId);
+  getReviews(
+    productId: string,
+    options?: { page?: number; limit?: number; status?: 'approved' | 'all'; sortBy?: string }
+  ): Review[] {
+    const showAll = options?.status === 'all';
+    let filtered = this.data.reviews.filter(
+      (r) => r.productId === productId && (showAll || r.status !== 'hidden')
+    );
+
+    const sortBy = options?.sortBy || 'newest';
+    if (sortBy === 'highest-rating') {
+      filtered.sort((a, b) => b.rating - a.rating || new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    } else if (sortBy === 'most-helpful') {
+      filtered.sort((a, b) => (b.helpfulCount || 0) - (a.helpfulCount || 0) || new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    } else {
+      filtered.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    }
+
+    if (options?.limit && options.limit > 0) {
+      const page = Math.max(1, options.page || 1);
+      const start = (page - 1) * options.limit;
+      return filtered.slice(start, start + options.limit);
+    }
+
+    return filtered;
+  }
+
+  getReviewStats(productId: string): { total: number; averageRating: number; ratingDistribution: Record<number, number> } {
+    const all = this.data.reviews.filter((r) => r.productId === productId && r.status !== 'hidden');
+    const distribution: Record<number, number> = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+    let sum = 0;
+    for (const r of all) {
+      const rate = Math.min(5, Math.max(1, Math.round(r.rating)));
+      distribution[rate] = (distribution[rate] || 0) + 1;
+      sum += r.rating;
+    }
+    const averageRating = all.length > 0 ? Number((sum / all.length).toFixed(1)) : 5.0;
+    return {
+      total: all.length,
+      averageRating,
+      ratingDistribution: distribution,
+    };
+  }
+
+  getAllReviews(): Review[] {
+    return [...this.data.reviews].sort(
+      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    );
+  }
+
+  getReviewById(id: string): Review | undefined {
+    return this.data.reviews.find((r) => r.id === id);
+  }
+
+  getUserProductReview(userId: string, productId: string): Review | undefined {
+    return this.data.reviews.find((r) => r.userId === userId && r.productId === productId);
+  }
+
+  isUserVerifiedPurchase(userId: string, productId: string): boolean {
+    if (!userId || !productId) return false;
+    const userOrders = this.data.orders.filter(
+      (o) => o.userId === userId && o.status !== 'cancelled'
+    );
+    return userOrders.some((o) => o.items && o.items.some((item) => item.productId === productId));
   }
 
   addReview(reviewData: Omit<Review, 'id' | 'createdAt'>): Review {
+    // Check if user already reviewed this product
+    const existing = this.getUserProductReview(reviewData.userId, reviewData.productId);
+    if (existing) {
+      // Update existing review instead of duplicate
+      return this.updateReview(existing.id, reviewData.userId, {
+        rating: reviewData.rating,
+        comment: reviewData.comment,
+      }).review || existing;
+    }
+
     const newRev: Review = {
       ...reviewData,
       id: `rev-${crypto.randomUUID()}`,
       createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      status: reviewData.status || 'approved',
+      helpfulCount: reviewData.helpfulCount || 0,
+      helpfulUserIds: reviewData.helpfulUserIds || [],
+      isVerifiedPurchase:
+        reviewData.isVerifiedPurchase ?? this.isUserVerifiedPurchase(reviewData.userId, reviewData.productId),
     };
     this.data.reviews.push(newRev);
 
-    // Update product rating
-    const prod = this.getProductById(reviewData.productId);
-    if (prod) {
-      const prodReviews = this.getReviews(prod.id);
-      const total = prodReviews.reduce((sum, r) => sum + r.rating, 0);
-      prod.rating = Number((total / prodReviews.length).toFixed(1));
-      prod.reviewCount = prodReviews.length;
-    }
-
+    // Update product rating and review count
+    this.recalculateProductRating(reviewData.productId);
     this.save();
     return newRev;
+  }
+
+  updateReview(
+    reviewId: string,
+    userId: string,
+    updateData: { rating?: number; comment?: string },
+    isAdmin = false
+  ): { success: boolean; review?: Review; error?: string } {
+    const rev = this.data.reviews.find((r) => r.id === reviewId);
+    if (!rev) {
+      return { success: false, error: 'دیدگاه مورد نظر یافت نشد.' };
+    }
+    if (!isAdmin && rev.userId !== userId) {
+      return { success: false, error: 'شما مجاز به ویرایش این دیدگاه نیستید.' };
+    }
+
+    if (updateData.rating !== undefined) {
+      rev.rating = Math.min(5, Math.max(1, Number(updateData.rating)));
+    }
+    if (updateData.comment !== undefined) {
+      rev.comment = updateData.comment.trim();
+    }
+    rev.updatedAt = new Date().toISOString();
+
+    this.recalculateProductRating(rev.productId);
+    this.save();
+    return { success: true, review: rev };
+  }
+
+  deleteReview(reviewId: string, userId: string, isAdmin = false): { success: boolean; error?: string } {
+    const idx = this.data.reviews.findIndex((r) => r.id === reviewId);
+    if (idx === -1) {
+      return { success: false, error: 'دیدگاه مورد نظر یافت نشد.' };
+    }
+    const rev = this.data.reviews[idx];
+    if (!isAdmin && rev.userId !== userId) {
+      return { success: false, error: 'شما مجاز به حذف این دیدگاه نیستید.' };
+    }
+
+    const productId = rev.productId;
+    this.data.reviews.splice(idx, 1);
+    this.recalculateProductRating(productId);
+    this.save();
+    return { success: true };
+  }
+
+  toggleHelpfulReview(reviewId: string, userId: string): { success: boolean; helpfulCount: number; hasVoted: boolean } {
+    const rev = this.data.reviews.find((r) => r.id === reviewId);
+    if (!rev) {
+      return { success: false, helpfulCount: 0, hasVoted: false };
+    }
+    if (!rev.helpfulUserIds) rev.helpfulUserIds = [];
+
+    const userIdx = rev.helpfulUserIds.indexOf(userId);
+    let hasVoted = false;
+    if (userIdx !== -1) {
+      rev.helpfulUserIds.splice(userIdx, 1);
+      hasVoted = false;
+    } else {
+      rev.helpfulUserIds.push(userId);
+      hasVoted = true;
+    }
+    rev.helpfulCount = rev.helpfulUserIds.length;
+    this.save();
+    return { success: true, helpfulCount: rev.helpfulCount, hasVoted };
+  }
+
+  updateReviewStatus(
+    reviewId: string,
+    status: 'approved' | 'hidden' | 'rejected' | 'pending'
+  ): { success: boolean; review?: Review; error?: string } {
+    const rev = this.data.reviews.find((r) => r.id === reviewId);
+    if (!rev) return { success: false, error: 'دیدگاه یافت نشد.' };
+    rev.status = status;
+    this.recalculateProductRating(rev.productId);
+    this.save();
+    return { success: true, review: rev };
+  }
+
+  private recalculateProductRating(productId: string) {
+    const prod = this.getProductById(productId);
+    if (!prod) return;
+    const prodReviews = this.data.reviews.filter((r) => r.productId === productId && r.status !== 'hidden');
+    if (prodReviews.length === 0) {
+      prod.rating = 5.0;
+      prod.reviewCount = 0;
+    } else {
+      const sum = prodReviews.reduce((acc, r) => acc + r.rating, 0);
+      prod.rating = Number((sum / prodReviews.length).toFixed(1));
+      prod.reviewCount = prodReviews.length;
+    }
   }
 
   // --- Favorites ---

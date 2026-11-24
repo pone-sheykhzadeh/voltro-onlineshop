@@ -87,7 +87,7 @@ export const FavoritesPage: React.FC<FavoritesPageProps> = ({ onNavigate }) => {
             </span>
           </div>
         ) : favorites.length === 0 ? (
-          /* Empty State matching Stitch styling */
+          /* Empty State */
           <div className="p-12 sm:p-16 rounded-3xl border text-center bg-white dark:bg-[#141417] border-slate-200 dark:border-white/[0.06] shadow-sm max-w-xl mx-auto my-12">
             <div className="w-16 h-16 rounded-3xl bg-rose-50 dark:bg-rose-500/10 text-rose-500 flex items-center justify-center mx-auto mb-5 border border-rose-200 dark:border-rose-500/20">
               <span className="material-symbols-outlined text-3xl">favorite_border</span>
@@ -107,7 +107,7 @@ export const FavoritesPage: React.FC<FavoritesPageProps> = ({ onNavigate }) => {
             </button>
           </div>
         ) : (
-          /* Product Grid matching Stitch card design */
+          /* Product Grid */
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
             {favorites.map((product) => {
               const defaultVariant = product.variants[0];

@@ -153,11 +153,17 @@ export const UserAccountPage: React.FC<UserAccountPageProps> = ({ onNavigate }) 
         {activeTab !== 'favorites' && (
           <div className="p-6 sm:p-8 rounded-3xl border mb-8 flex flex-col sm:flex-row items-center justify-between gap-6 bg-white dark:bg-[#141417] border-slate-200 dark:border-white/[0.06] shadow-md">
             <div className="flex items-center gap-4">
-              <img
-                src={user.avatar || 'https://lh3.googleusercontent.com/aida-public/AB6AXuDDFf26GXqr-2c3bJ3L1A3MwQX5syyjKNU29_8haSa6wY-ehOAyVT9h0KPPuqZyBeNW-3ZtlnhTQBGbWqAJunHAjm8IELD3Oij-0TKsEVXjgxxSMai0bjZ-a5vjlTaCyC0etuntG4xCLek869jGnUh_zAsTDnZvcGknpApu4InT2qhAaD6_L9EuZXj58x38FBEJTE--zSBsugndzEPNdZBaU1y84sO1B3O1_AoHFWVNCpzx1F7Rflc'}
-                alt={user.name}
-                className="w-16 h-16 rounded-2xl object-cover ring-2 ring-blue-500/30"
-              />
+              {user.avatar ? (
+                <img
+                  src={user.avatar}
+                  alt={user.name}
+                  className="w-16 h-16 rounded-2xl object-cover ring-2 ring-blue-500/30"
+                />
+              ) : (
+                <div className="w-16 h-16 rounded-2xl bg-blue-600/15 border border-blue-500/30 text-blue-500 flex items-center justify-center text-xl font-bold">
+                  {user.name?.charAt(0) || 'V'}
+                </div>
+              )}
               <div>
                 <div className="flex items-center gap-2">
                   <h1 className="text-xl font-bold text-slate-900 dark:text-white">
@@ -169,7 +175,15 @@ export const UserAccountPage: React.FC<UserAccountPageProps> = ({ onNavigate }) 
                     </span>
                   )}
                 </div>
-                <p className="text-xs text-zinc-400 font-mono mt-1">{user.email}</p>
+                <p className="text-xs text-slate-500 dark:text-zinc-400 font-mono mt-1" dir="ltr">
+                  {user.username || user.email}
+                </p>
+                {user.phone && (
+                  <p className="text-xs text-slate-500 dark:text-zinc-400 font-mono mt-0.5 flex items-center gap-1">
+                    <span className="material-symbols-outlined text-xs">call</span>
+                    <span dir="ltr">{user.phone}</span>
+                  </p>
+                )}
               </div>
             </div>
 

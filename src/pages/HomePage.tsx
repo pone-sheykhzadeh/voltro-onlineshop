@@ -1,55 +1,26 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, memo } from 'react';
 import type { Product, FlashCampaign } from '../types/index.ts';
 import { useCart } from '../context/CartContext.tsx';
 import { useToast } from '../context/ToastContext.tsx';
 import { useFavorites } from '../context/FavoritesContext.tsx';
+import { useComparison } from '../context/ComparisonContext.tsx';
 import { formatPrice } from '../utils/format.ts';
 
-interface HomePageProps {
-  onNavigate: (path: string, productId?: string) => void;
-}
+// Dedicated memoized Countdown component to eliminate 1-second full-page re-renders
+const CampaignCountdown: React.FC<{ endDate?: string }> = memo(({ endDate }) => {
+  const pad2 = (num: number) => String(num).padStart(2, '0');
+  const targetDate = endDate ? new Date(endDate).getTime() : Date.now() + 48 * 3600 * 1000;
 
-export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
-  const [products, setProducts] = useState<Product[]>([]);
-  const [campaign, setCampaign] = useState<FlashCampaign | null>(null);
-  const [activeCategoryFilter, setActiveCategoryFilter] = useState('all');
-  const [timeLeft, setTimeLeft] = useState<{ days: string; hours: string; minutes: string; seconds: string }>({
-    days: '01',
-    hours: '18',
-    minutes: '42',
-    seconds: '25',
+  const [timeLeft, setTimeLeft] = useState<{ days: string; hours: string; minutes: string; seconds: string }>(() => {
+    const diff = Math.max(0, targetDate - Date.now());
+    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+    const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+    const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+    return { days: pad2(days), hours: pad2(hours), minutes: pad2(minutes), seconds: pad2(seconds) };
   });
 
-  const { addToCart } = useCart();
-  const { showToast } = useToast();
-  const { isFavorite, toggleFavorite } = useFavorites();
-
   useEffect(() => {
-    // Load products from DB
-    fetch('/api/products')
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.products) setProducts(data.products);
-      })
-      .catch((err) => console.error('Failed to fetch products:', err));
-
-    // Load active campaign from DB
-    fetch('/api/campaigns/active')
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.campaign) {
-          setCampaign(data.campaign);
-        }
-      })
-      .catch((err) => console.error('Failed to fetch active campaign:', err));
-  }, []);
-
-  // Persistent live countdown timer linked to real DB campaign expiration
-  useEffect(() => {
-    const pad2 = (num: number) => String(num).padStart(2, '0');
-
-    const targetDate = campaign?.endDate ? new Date(campaign.endDate).getTime() : Date.now() + 48 * 3600 * 1000;
-
     const timer = setInterval(() => {
       const now = Date.now();
       const distance = targetDate - now;
@@ -73,7 +44,74 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [campaign]);
+  }, [targetDate]);
+
+  return (
+    <div className="flex items-center gap-2" dir="ltr">
+      <div className="flex flex-col items-center justify-center w-14 sm:w-16 h-16 rounded-2xl border shadow-inner bg-white dark:bg-[#0f0f13] border-slate-200 dark:border-white/[0.08]">
+        <span className="font-mono text-xl sm:text-2xl font-bold text-slate-900 dark:text-white">
+          {timeLeft.days}
+        </span>
+        <span className="text-[10px] text-slate-500 dark:text-zinc-500 mt-0.5">روز</span>
+      </div>
+      <span className="text-blue-500 font-bold text-lg -mt-3">:</span>
+      <div className="flex flex-col items-center justify-center w-14 sm:w-16 h-16 rounded-2xl border shadow-inner bg-white dark:bg-[#0f0f13] border-slate-200 dark:border-white/[0.08]">
+        <span className="font-mono text-xl sm:text-2xl font-bold text-slate-900 dark:text-white">
+          {timeLeft.hours}
+        </span>
+        <span className="text-[10px] text-slate-500 dark:text-zinc-500 mt-0.5">ساعت</span>
+      </div>
+      <span className="text-blue-500 font-bold text-lg -mt-3">:</span>
+      <div className="flex flex-col items-center justify-center w-14 sm:w-16 h-16 rounded-2xl border shadow-inner bg-white dark:bg-[#0f0f13] border-slate-200 dark:border-white/[0.08]">
+        <span className="font-mono text-xl sm:text-2xl font-bold text-slate-900 dark:text-white">
+          {timeLeft.minutes}
+        </span>
+        <span className="text-[10px] text-slate-500 dark:text-zinc-500 mt-0.5">دقیقه</span>
+      </div>
+      <span className="text-blue-500 font-bold text-lg -mt-3">:</span>
+      <div className="flex flex-col items-center justify-center w-14 sm:w-16 h-16 rounded-2xl border shadow-[0_0_15px_rgba(59,130,246,0.2)] bg-blue-50 dark:bg-[#0f0f13] border-blue-500/30">
+        <span className="font-mono text-xl sm:text-2xl font-bold text-blue-600 dark:text-blue-400">
+          {timeLeft.seconds}
+        </span>
+        <span className="text-[10px] text-blue-600 dark:text-blue-400 mt-0.5">ثانیه</span>
+      </div>
+    </div>
+  );
+});
+
+interface HomePageProps {
+  onNavigate: (path: string, productId?: string) => void;
+}
+
+export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
+  const [products, setProducts] = useState<Product[]>([]);
+  const [campaign, setCampaign] = useState<FlashCampaign | null>(null);
+  const [activeCategoryFilter, setActiveCategoryFilter] = useState('all');
+
+  const { addToCart } = useCart();
+  const { showToast } = useToast();
+  const { isFavorite, toggleFavorite } = useFavorites();
+  const { isInComparison, addToComparison, removeFromComparison } = useComparison();
+
+  useEffect(() => {
+    // Load products from DB
+    fetch('/api/products')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.products) setProducts(data.products);
+      })
+      .catch((err) => console.error('Failed to fetch products:', err));
+
+    // Load active campaign from DB
+    fetch('/api/campaigns/active')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.campaign) {
+          setCampaign(data.campaign);
+        }
+      })
+      .catch((err) => console.error('Failed to fetch active campaign:', err));
+  }, []);
 
   // Flash deals products
   const flashProducts = products.filter((p) => p.isFlashDeal || (campaign && campaign.eligibleProductIds.includes(p.id)));
@@ -385,39 +423,7 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
 
             {/* Countdown Blocks */}
             <div className="flex flex-wrap items-center gap-4 w-full lg:w-auto justify-between lg:justify-end">
-              <div className="flex items-center gap-2" dir="ltr">
-                {/* Days */}
-                <div className="flex flex-col items-center justify-center w-14 sm:w-16 h-16 rounded-2xl border shadow-inner bg-white dark:bg-[#0f0f13] border-slate-200 dark:border-white/[0.08]">
-                  <span className="font-mono text-xl sm:text-2xl font-bold text-slate-900 dark:text-white">
-                    {timeLeft.days}
-                  </span>
-                  <span className="text-[10px] text-slate-500 dark:text-zinc-500 mt-0.5">روز</span>
-                </div>
-                <span className="text-blue-500 font-bold text-lg -mt-3">:</span>
-                {/* Hours */}
-                <div className="flex flex-col items-center justify-center w-14 sm:w-16 h-16 rounded-2xl border shadow-inner bg-white dark:bg-[#0f0f13] border-slate-200 dark:border-white/[0.08]">
-                  <span className="font-mono text-xl sm:text-2xl font-bold text-slate-900 dark:text-white">
-                    {timeLeft.hours}
-                  </span>
-                  <span className="text-[10px] text-slate-500 dark:text-zinc-500 mt-0.5">ساعت</span>
-                </div>
-                <span className="text-blue-500 font-bold text-lg -mt-3">:</span>
-                {/* Minutes */}
-                <div className="flex flex-col items-center justify-center w-14 sm:w-16 h-16 rounded-2xl border shadow-inner bg-white dark:bg-[#0f0f13] border-slate-200 dark:border-white/[0.08]">
-                  <span className="font-mono text-xl sm:text-2xl font-bold text-slate-900 dark:text-white">
-                    {timeLeft.minutes}
-                  </span>
-                  <span className="text-[10px] text-slate-500 dark:text-zinc-500 mt-0.5">دقیقه</span>
-                </div>
-                <span className="text-blue-500 font-bold text-lg -mt-3">:</span>
-                {/* Seconds */}
-                <div className="flex flex-col items-center justify-center w-14 sm:w-16 h-16 rounded-2xl border shadow-[0_0_15px_rgba(59,130,246,0.2)] bg-blue-50 dark:bg-[#0f0f13] border-blue-500/30">
-                  <span className="font-mono text-xl sm:text-2xl font-bold text-blue-600 dark:text-blue-400">
-                    {timeLeft.seconds}
-                  </span>
-                  <span className="text-[10px] text-blue-600 dark:text-blue-400 mt-0.5">ثانیه</span>
-                </div>
-              </div>
+              <CampaignCountdown endDate={campaign?.endDate} />
 
               <button
                 onClick={() => onNavigate('special-offers')}
@@ -458,6 +464,24 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
+                          if (isInComparison(item.id)) {
+                            removeFromComparison(item.id);
+                          } else {
+                            addToComparison(item);
+                          }
+                        }}
+                        title={isInComparison(item.id) ? 'حذف از مقایسه' : 'افزودن به مقایسه'}
+                        className={`w-7 h-7 rounded-full transition-all flex items-center justify-center cursor-pointer shadow-xs border ${
+                          isInComparison(item.id)
+                            ? 'bg-amber-50 dark:bg-amber-500/20 text-amber-500 border-amber-300 dark:border-amber-500/40'
+                            : 'bg-slate-100 dark:bg-zinc-800/60 text-slate-400 dark:text-zinc-400 hover:text-amber-500 border-slate-200 dark:border-white/[0.06]'
+                        }`}
+                      >
+                        <span className="material-symbols-outlined text-base">compare_arrows</span>
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
                           toggleFavorite(item);
                         }}
                         title={isFavorite(item.id) ? 'حذف از علاقه‌مندی‌ها' : 'افزودن به علاقه‌مندی‌ها'}
@@ -479,6 +503,8 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
                     <img
                       src={item.images[0]}
                       alt={item.name}
+                      loading="lazy"
+                      decoding="async"
                       className="product-cutout max-h-36 w-auto object-contain group-hover:scale-105 transition-transform duration-500 drop-shadow-[0_15px_25px_rgba(0,0,0,0.8)]"
                     />
                   </div>
@@ -689,17 +715,37 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
                     <span className="font-mono text-[10px] px-2.5 py-0.5 rounded-full bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-500/20 font-semibold">
                       {prod.tags[0] || 'پرچمدار'}
                     </span>
-                    <button
-                      onClick={() => toggleFavorite(prod)}
-                      title={isFavorite(prod.id) ? 'حذف از علاقه‌مندی‌ها' : 'افزودن به علاقه‌مندی‌ها'}
-                      className={`w-8 h-8 rounded-full transition-all flex items-center justify-center cursor-pointer shadow-xs border ${
-                        isFavorite(prod.id)
-                          ? 'bg-rose-50 dark:bg-rose-500/10 text-rose-500 border-rose-200 dark:border-rose-500/20'
-                          : 'bg-slate-100 dark:bg-zinc-800/60 text-slate-400 dark:text-zinc-400 hover:text-rose-500 border-slate-200 dark:border-white/[0.06]'
-                      }`}
-                    >
-                      <span className="material-symbols-outlined text-base">favorite</span>
-                    </button>
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (isInComparison(prod.id)) {
+                            removeFromComparison(prod.id);
+                          } else {
+                            addToComparison(prod);
+                          }
+                        }}
+                        title={isInComparison(prod.id) ? 'حذف از مقایسه' : 'افزودن به مقایسه'}
+                        className={`w-7 h-7 rounded-full transition-all flex items-center justify-center cursor-pointer shadow-xs border ${
+                          isInComparison(prod.id)
+                            ? 'bg-amber-50 dark:bg-amber-500/20 text-amber-500 border-amber-300 dark:border-amber-500/40'
+                            : 'bg-slate-100 dark:bg-zinc-800/60 text-slate-400 dark:text-zinc-400 hover:text-amber-500 border-slate-200 dark:border-white/[0.06]'
+                        }`}
+                      >
+                        <span className="material-symbols-outlined text-base">compare_arrows</span>
+                      </button>
+                      <button
+                        onClick={() => toggleFavorite(prod)}
+                        title={isFavorite(prod.id) ? 'حذف از علاقه‌مندی‌ها' : 'افزودن به علاقه‌مندی‌ها'}
+                        className={`w-7 h-7 rounded-full transition-all flex items-center justify-center cursor-pointer shadow-xs border ${
+                          isFavorite(prod.id)
+                            ? 'bg-rose-50 dark:bg-rose-500/10 text-rose-500 border-rose-200 dark:border-rose-500/20'
+                            : 'bg-slate-100 dark:bg-zinc-800/60 text-slate-400 dark:text-zinc-400 hover:text-rose-500 border-slate-200 dark:border-white/[0.06]'
+                        }`}
+                      >
+                        <span className="material-symbols-outlined text-base">favorite</span>
+                      </button>
+                    </div>
                   </div>
 
                   <div
@@ -709,6 +755,8 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
                     <img
                       src={prod.images[0]}
                       alt={prod.name}
+                      loading="lazy"
+                      decoding="async"
                       className="product-cutout max-h-32 w-auto object-contain group-hover:scale-105 transition-transform duration-300"
                     />
                   </div>

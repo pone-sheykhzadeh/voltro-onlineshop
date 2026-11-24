@@ -41,12 +41,27 @@ import {
   deleteAddressInSupabase,
   getReviewsFromSupabase,
   addReviewInSupabase,
+  updateReviewInSupabase,
+  deleteReviewInSupabase,
+  toggleHelpfulReviewInSupabase,
+  getAllReviewsFromSupabase,
+  updateReviewStatusInSupabase,
   createProductInSupabase,
   updateProductInSupabase,
   deleteProductInSupabase,
-  getSupabaseClient,
-  syncOAuthUserWithSupabase,
 } from './supabase.ts';
+
+// High-performance in-memory cache for fast storefront rendering
+let productsCache: { timestamp: number; data: any } | null = null;
+let activeCampaignCache: { timestamp: number; data: any } | null = null;
+const CACHE_TTL_MS = 25000;
+
+export function invalidateProductsCache() {
+  productsCache = null;
+}
+export function invalidateCampaignCache() {
+  activeCampaignCache = null;
+}
 
 export const apiRouter = Router();
 
@@ -55,17 +70,27 @@ export const apiRouter = Router();
 // ==========================================
 
 apiRouter.post('/auth/register', rateLimiter(15, 60000), async (req: Request, res: Response) => {
-  const { name, email, password, phone } = req.body;
+  const { name, username, email, password, phone } = req.body;
+  const identifier = String(username || email || '').trim().toLowerCase();
+  const cleanPhone = String(phone || '').trim();
 
-  if (!name || !email || !password) {
-    return res.status(400).json({ error: 'نام، ایمیل و کلمه عبور الزامی هستند.' });
+  if (!name || !identifier || !password || !cleanPhone) {
+    return res.status(400).json({ error: 'نام، نام کاربری، شماره موبایل و کلمه عبور الزامی هستند.' });
+  }
+
+  if (identifier.length < 3) {
+    return res.status(400).json({ error: 'نام کاربری باید حداقل ۳ کاراکتر باشد.' });
+  }
+
+  if (!/^[0-9+\-\s]{10,15}$/.test(cleanPhone)) {
+    return res.status(400).json({ error: 'لطفاً شماره موبایل معتبر وارد کنید.' });
   }
 
   if (password.length < 6) {
     return res.status(400).json({ error: 'کلمه عبور باید حداقل 6 کاراکتر باشد.' });
   }
 
-  const result = await registerUserWithSupabase(name, email.trim().toLowerCase(), password, phone);
+  const result = await registerUserWithSupabase(String(name).trim(), identifier, password, cleanPhone);
   if (!result.success || !result.user) {
     return res.status(400).json({ error: result.error || 'خطا در ثبت‌نام کاربر.' });
   }
@@ -77,6 +102,7 @@ apiRouter.post('/auth/register', rateLimiter(15, 60000), async (req: Request, re
     user: {
       id: result.user.id,
       name: result.user.name,
+      username: result.user.username || result.user.email,
       email: result.user.email,
       role: result.user.role,
       phone: result.user.phone,
@@ -86,15 +112,16 @@ apiRouter.post('/auth/register', rateLimiter(15, 60000), async (req: Request, re
 });
 
 apiRouter.post('/auth/login', rateLimiter(20, 60000), async (req: Request, res: Response) => {
-  const { email, password } = req.body;
+  const { username, email, password } = req.body;
+  const identifier = String(username || email || '').trim().toLowerCase();
 
-  if (!email || !password) {
-    return res.status(400).json({ error: 'لطفاً ایمیل و کلمه عبور را وارد کنید.' });
+  if (!identifier || !password) {
+    return res.status(400).json({ error: 'لطفاً نام کاربری و کلمه عبور را وارد کنید.' });
   }
 
-  const result = await authenticateOrMigrateUser(email.trim().toLowerCase(), password);
+  const result = await authenticateOrMigrateUser(identifier, password);
   if (!result.success || !result.user) {
-    return res.status(401).json({ error: result.error || 'ایمیل یا کلمه عبور اشتباه است.' });
+    return res.status(401).json({ error: result.error || 'نام کاربری یا کلمه عبور اشتباه است.' });
   }
 
   const token = createToken(result.user);
@@ -106,6 +133,7 @@ apiRouter.post('/auth/login', rateLimiter(20, 60000), async (req: Request, res: 
     user: {
       id: result.user.id,
       name: result.user.name,
+      username: result.user.username || result.user.email,
       email: result.user.email,
       role: result.user.role,
       phone: result.user.phone,
@@ -114,77 +142,19 @@ apiRouter.post('/auth/login', rateLimiter(20, 60000), async (req: Request, res: 
   });
 });
 
-apiRouter.post('/auth/sync-session', async (req: Request, res: Response) => {
-  const { accessToken } = req.body;
-  if (!accessToken) {
-    return res.status(400).json({ error: 'توکن دسترسی الزامی است.' });
-  }
-
-  try {
-    const supabase = getSupabaseClient();
-    if (supabase) {
-      const { data: authData, error: authErr } = await supabase.auth.getUser(accessToken);
-      if (authErr || !authData?.user) {
-        return res.status(401).json({ error: 'توکن دسترسی نامعتبر است یا منقضی شده است.' });
-      }
-      const suUser = authData.user;
-      const email = (suUser.email || '').trim().toLowerCase();
-      const name = suUser.user_metadata?.full_name || suUser.user_metadata?.name || email.split('@')[0];
-      const avatar = suUser.user_metadata?.avatar_url || suUser.user_metadata?.picture;
-
-      const result = await syncOAuthUserWithSupabase(suUser.id, email, name, avatar);
-      if (!result.success || !result.user) {
-        return res.status(500).json({ error: result.error || 'خطا در همگام‌سازی حساب کاربری.' });
-      }
-
-      const token = createToken(result.user);
-      return res.json({
-        message: 'همگام‌سازی حساب با موفقیت انجام شد.',
-        token,
-        user: {
-          id: result.user.id,
-          name: result.user.name,
-          email: result.user.email,
-          role: result.user.role,
-          phone: result.user.phone,
-          avatar: result.user.avatar,
-        },
-      });
-    } else {
-      return res.status(500).json({ error: 'سرویس پایگاه داده Supabase در دسترس نیست.' });
-    }
-  } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : String(err);
-    return res.status(500).json({ error: msg });
-  }
-});
-
 apiRouter.get('/auth/me', authenticateToken, (req: AuthenticatedRequest, res: Response) => {
   const user = req.user!;
   return res.json({
     user: {
       id: user.id,
       name: user.name,
+      username: user.username || user.email,
       email: user.email,
       role: user.role,
       phone: user.phone,
       avatar: user.avatar,
       createdAt: user.createdAt,
     },
-  });
-});
-
-apiRouter.post('/auth/forgot-password', rateLimiter(10, 60000), (req: Request, res: Response) => {
-  const { email } = req.body;
-  if (!email) {
-    return res.status(400).json({ error: 'ایمیل الزامی است.' });
-  }
-  const user = db.getUserByEmail(email);
-  if (!user) {
-    return res.json({ message: 'در صورت ثبت بودن ایمیل، دستورالعمل بازیابی رمز ارسال گردید.' });
-  }
-  return res.json({
-    message: 'لینک بازیابی رمز عبور به ایمیل شما ارسال شد. (برای تست: رمز عبور حساب شما بدون تغییر فعال است)',
   });
 });
 
@@ -196,6 +166,13 @@ apiRouter.get('/products', async (req: Request, res: Response) => {
   res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
   const { q, category, brand, sort, minPrice, maxPrice } = req.query;
 
+  const isDefaultQuery = !q && !category && !brand && !sort && !minPrice && !maxPrice;
+  const now = Date.now();
+
+  if (isDefaultQuery && productsCache && now - productsCache.timestamp < CACHE_TTL_MS) {
+    return res.json({ products: productsCache.data });
+  }
+
   const products = await getProductsFromSupabase({
     q: typeof q === 'string' ? q : undefined,
     category: typeof category === 'string' ? category : undefined,
@@ -204,6 +181,10 @@ apiRouter.get('/products', async (req: Request, res: Response) => {
     minPrice: minPrice ? Number(minPrice) : undefined,
     maxPrice: maxPrice ? Number(maxPrice) : undefined,
   });
+
+  if (isDefaultQuery) {
+    productsCache = { timestamp: now, data: products };
+  }
 
   return res.json({ products });
 });
@@ -216,13 +197,57 @@ apiRouter.get('/products/:id', async (req: Request, res: Response) => {
     return res.status(404).json({ error: 'محصول مورد نظر یافت نشد.' });
   }
 
-  const reviews = await getReviewsFromSupabase(product.id);
+  const reviews = await getReviewsFromSupabase(product.id, { status: 'approved' });
   const allProds = await getProductsFromSupabase();
   const related = allProds
     .filter((p) => p.category === product.category && p.id !== product.id)
     .slice(0, 4);
 
   return res.json({ product, reviews, relatedProducts: related });
+});
+
+apiRouter.get('/products/:id/reviews', optionalAuth, async (req: AuthenticatedRequest, res: Response) => {
+  const { id } = req.params;
+  const page = parseInt(req.query.page as string, 10) || 1;
+  const limit = parseInt(req.query.limit as string, 10) || 5;
+  const sortBy = (req.query.sortBy as string) || 'newest';
+
+  const product = await getProductByIdFromSupabase(id);
+  if (!product) {
+    return res.status(404).json({ error: 'محصول یافت نشد.' });
+  }
+
+  const allReviews = await getReviewsFromSupabase(product.id, { status: 'approved' });
+  const stats = db.getReviewStats(product.id);
+
+  let sorted = [...allReviews];
+  if (sortBy === 'highest-rating') {
+    sorted.sort((a, b) => b.rating - a.rating || new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  } else if (sortBy === 'lowest-rating') {
+    sorted.sort((a, b) => a.rating - b.rating || new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  } else if (sortBy === 'most-helpful') {
+    sorted.sort((a, b) => (b.helpfulCount || 0) - (a.helpfulCount || 0) || new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  } else {
+    sorted.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  }
+
+  const total = sorted.length;
+  const totalPages = Math.ceil(total / limit) || 1;
+  const startIndex = (page - 1) * limit;
+  const paginatedReviews = sorted.slice(startIndex, startIndex + limit);
+
+  const userReview = req.user ? db.getUserProductReview(req.user.id, product.id) : null;
+  const isVerifiedPurchase = req.user ? db.isUserVerifiedPurchase(req.user.id, product.id) : false;
+
+  return res.json({
+    reviews: paginatedReviews,
+    total,
+    page,
+    totalPages,
+    stats,
+    userReview,
+    isVerifiedPurchase,
+  });
 });
 
 apiRouter.get('/categories', async (_req: Request, res: Response) => {
@@ -236,7 +261,13 @@ apiRouter.get('/brands', async (_req: Request, res: Response) => {
 });
 
 apiRouter.get('/campaigns/active', async (_req: Request, res: Response) => {
+  const now = Date.now();
+  if (activeCampaignCache && now - activeCampaignCache.timestamp < CACHE_TTL_MS) {
+    return res.json({ campaign: activeCampaignCache.data });
+  }
+
   const activeCampaign = await getActiveCampaignFromSupabase();
+  activeCampaignCache = { timestamp: now, data: activeCampaign || null };
   return res.json({ campaign: activeCampaign || null });
 });
 
@@ -359,20 +390,84 @@ apiRouter.post('/payments/checkout', authenticateToken, (req: AuthenticatedReque
 apiRouter.post('/reviews', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
   const { productId, rating, comment } = req.body;
 
-  if (!productId || !rating || !comment) {
+  if (!productId || rating === undefined || !comment) {
     return res.status(400).json({ error: 'شناسه کالا، امتیاز و متن نظر الزامی هستند.' });
   }
+
+  const numericRating = Number(rating);
+  if (isNaN(numericRating) || numericRating < 1 || numericRating > 5) {
+    return res.status(400).json({ error: 'امتیاز باید عددی بین ۱ تا ۵ باشد.' });
+  }
+
+  const trimmedComment = String(comment).trim();
+  if (trimmedComment.length < 3) {
+    return res.status(400).json({ error: 'متن نظر باید حداقل ۳ کاراکتر باشد.' });
+  }
+
+  // Prevent multiple reviews from same user on the same product
+  const existing = db.getUserProductReview(req.user!.id, productId);
+  if (existing) {
+    return res.status(400).json({
+      error: 'شما قبلاً برای این محصول دیدگاه ثبت کرده‌اید. می‌توانید دیدگاه قبلی خود را ویرایش کنید.',
+      existingReviewId: existing.id,
+    });
+  }
+
+  const isVerified = db.isUserVerifiedPurchase(req.user!.id, productId);
 
   const review = await addReviewInSupabase({
     productId,
     userId: req.user!.id,
     userName: req.user!.name,
-    rating: Number(rating),
-    comment: comment.trim(),
-    isVerifiedPurchase: true,
+    rating: numericRating,
+    comment: trimmedComment,
+    isVerifiedPurchase: isVerified,
+    status: 'approved',
   });
 
+  invalidateProductsCache();
   return res.status(201).json({ message: 'دیدگاه شما با موفقیت ثبت شد.', review });
+});
+
+apiRouter.put('/reviews/:id', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
+  const { rating, comment } = req.body;
+  const reviewId = req.params.id;
+
+  if (rating !== undefined) {
+    const numericRating = Number(rating);
+    if (isNaN(numericRating) || numericRating < 1 || numericRating > 5) {
+      return res.status(400).json({ error: 'امتیاز باید عددی بین ۱ تا ۵ باشد.' });
+    }
+  }
+
+  const isAdmin = req.user?.role === 'admin';
+  const result = await updateReviewInSupabase(reviewId, req.user!.id, { rating, comment }, isAdmin);
+
+  if (!result.success) {
+    return res.status(400).json({ error: result.error || 'خطا در ویرایش نظر.' });
+  }
+
+  invalidateProductsCache();
+  return res.json({ message: 'دیدگاه با موفقیت ویرایش شد.', review: result.review });
+});
+
+apiRouter.delete('/reviews/:id', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
+  const reviewId = req.params.id;
+  const isAdmin = req.user?.role === 'admin';
+  const result = await deleteReviewInSupabase(reviewId, req.user!.id, isAdmin);
+
+  if (!result.success) {
+    return res.status(400).json({ error: result.error || 'خطا در حذف نظر.' });
+  }
+
+  invalidateProductsCache();
+  return res.json({ message: 'دیدگاه با موفقیت حذف شد.' });
+});
+
+apiRouter.post('/reviews/:id/helpful', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
+  const reviewId = req.params.id;
+  const result = await toggleHelpfulReviewInSupabase(reviewId, req.user!.id);
+  return res.json(result);
 });
 
 apiRouter.get('/favorites', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
@@ -503,6 +598,7 @@ apiRouter.post('/admin/products', authenticateToken, requireAdmin, async (req: A
   if (!result.success || !result.product) {
     return res.status(400).json({ error: result.error || 'خطا در ثبت محصول در پایگاه داده.' });
   }
+  invalidateProductsCache();
   return res.status(201).json({ product: result.product });
 });
 
@@ -511,6 +607,7 @@ apiRouter.put('/admin/products/:id', authenticateToken, requireAdmin, async (req
   if (!result.success || !result.product) {
     return res.status(400).json({ error: result.error || 'محصول یافت نشد یا بروزرسانی ناموفق بود.' });
   }
+  invalidateProductsCache();
   return res.json({ product: result.product });
 });
 
@@ -519,6 +616,7 @@ apiRouter.delete('/admin/products/:id', authenticateToken, requireAdmin, async (
   if (!result.success) {
     return res.status(400).json({ error: result.error || 'خطا در حذف محصول از دیتابیس.' });
   }
+  invalidateProductsCache();
   return res.json({ success: true });
 });
 
@@ -527,6 +625,7 @@ apiRouter.put('/admin/inventory/:id', authenticateToken, requireAdmin, async (re
   const ok = await updateInventoryStockInSupabase(req.params.id, Number(stock), req.user!);
   const product = await getProductByIdFromSupabase(req.params.id);
   if (!product) return res.status(404).json({ error: 'محصول یافت نشد.' });
+  invalidateProductsCache();
   return res.json({ product, success: ok });
 });
 
@@ -555,6 +654,7 @@ apiRouter.post('/admin/campaigns', authenticateToken, requireAdmin, async (req: 
     id: req.body.id || `camp-${Date.now()}`,
   };
   await saveCampaignInSupabase(campData, req.user!);
+  invalidateCampaignCache();
   return res.status(201).json({ campaign: campData });
 });
 
@@ -564,7 +664,44 @@ apiRouter.put('/admin/campaigns/:id', authenticateToken, requireAdmin, async (re
     id: req.params.id,
   };
   await saveCampaignInSupabase(campData, req.user!);
+  invalidateCampaignCache();
   return res.json({ campaign: campData });
+});
+
+apiRouter.get('/admin/reviews', authenticateToken, requireAdmin, async (_req: AuthenticatedRequest, res: Response) => {
+  const reviews = await getAllReviewsFromSupabase();
+  const products = await getProductsFromSupabase();
+  const enriched = reviews.map((r) => {
+    const p = products.find((prod) => prod.id === r.productId);
+    return {
+      ...r,
+      productName: p?.name || 'محصول نامشخص',
+      productImage: p?.images?.[0] || '',
+    };
+  });
+  return res.json({ reviews: enriched });
+});
+
+apiRouter.patch('/admin/reviews/:id/status', authenticateToken, requireAdmin, async (req: AuthenticatedRequest, res: Response) => {
+  const { status } = req.body;
+  if (!['approved', 'pending', 'rejected'].includes(status)) {
+    return res.status(400).json({ error: 'وضعیت نامعتبر است.' });
+  }
+  const result = await updateReviewStatusInSupabase(req.params.id, status as any);
+  if (!result.success) {
+    return res.status(404).json({ error: result.error || 'دیدگاه یافت نشد.' });
+  }
+  invalidateProductsCache();
+  return res.json({ message: 'وضعیت دیدگاه تغییر یافت.', review: result.review });
+});
+
+apiRouter.delete('/admin/reviews/:id', authenticateToken, requireAdmin, async (req: AuthenticatedRequest, res: Response) => {
+  const result = await deleteReviewInSupabase(req.params.id, req.user!.id, true);
+  if (!result.success) {
+    return res.status(400).json({ error: result.error || 'خطا در حذف دیدگاه.' });
+  }
+  invalidateProductsCache();
+  return res.json({ message: 'دیدگاه با موفقیت حذف شد.' });
 });
 
 apiRouter.get('/admin/audit-logs', authenticateToken, requireAdmin, async (_req: AuthenticatedRequest, res: Response) => {

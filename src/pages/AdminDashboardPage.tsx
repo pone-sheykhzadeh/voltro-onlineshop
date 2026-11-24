@@ -12,12 +12,14 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ onNaviga
   const { user, token, openAuthModal } = useAuth();
   const { showToast } = useToast();
 
-  const [activeTab, setActiveTab] = useState<'analytics' | 'inventory' | 'orders' | 'limitedSale'>('analytics');
+  const [activeTab, setActiveTab] = useState<'analytics' | 'inventory' | 'orders' | 'limitedSale' | 'reviews'>('analytics');
   const [metrics, setMetrics] = useState<any>(null);
   const [orders, setOrders] = useState<Order[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [campaigns, setCampaigns] = useState<FlashCampaign[]>([]);
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
+  const [adminReviews, setAdminReviews] = useState<any[]>([]);
+  const [reviewFilterStatus, setReviewFilterStatus] = useState<string>('all');
   const [isLoading, setIsLoading] = useState(true);
 
   // Time filter for trends chart: 'day' | 'week' | 'month'
@@ -75,11 +77,13 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ onNaviga
       fetch('/api/products').then((r) => (r.ok ? r.json() : null)),
       fetch('/api/admin/campaigns', { headers }).then((r) => (r.ok ? r.json() : null)),
       fetch('/api/admin/audit-logs', { headers }).then((r) => (r.ok ? r.json() : null)),
+      fetch('/api/admin/reviews', { headers }).then((r) => (r.ok ? r.json() : null)),
     ])
-      .then(([metricsData, ordersData, productsData, campaignsData, logsData]) => {
+      .then(([metricsData, ordersData, productsData, campaignsData, logsData, reviewsData]) => {
         if (metricsData) setMetrics(metricsData);
         if (ordersData?.orders) setOrders(ordersData.orders);
         if (productsData?.products) setProducts(productsData.products);
+        if (reviewsData?.reviews) setAdminReviews(reviewsData.reviews);
         if (campaignsData?.campaigns) {
           setCampaigns(campaignsData.campaigns);
           const firstCamp = campaignsData.campaigns[0];
@@ -111,8 +115,51 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ onNaviga
       });
   };
 
+  const handleUpdateReviewStatus = async (reviewId: string, status: 'approved' | 'rejected' | 'pending') => {
+    try {
+      const res = await fetch(`/api/admin/reviews/${reviewId}/status`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ status }),
+      });
+      if (res.ok) {
+        showToast('وضعیت دیدگاه با موفقیت تغییر یافت.', 'success');
+        setAdminReviews((prev) =>
+          prev.map((r) => (r.id === reviewId ? { ...r, status } : r))
+        );
+      } else {
+        showToast('خطا در تغییر وضعیت دیدگاه.', 'error');
+      }
+    } catch {
+      showToast('خطا در برقراری ارتباط با سرور.', 'error');
+    }
+  };
+
+  const handleDeleteAdminReview = async (reviewId: string) => {
+    if (!window.confirm('آیا از حذف دائم این دیدگاه توسط مدیر اطمینان دارید؟')) return;
+    try {
+      const res = await fetch(`/api/admin/reviews/${reviewId}`, {
+        method: 'DELETE',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      if (res.ok) {
+        showToast('دیدگاه با موفقیت از سیستم حذف شد.', 'info');
+        setAdminReviews((prev) => prev.filter((r) => r.id !== reviewId));
+      } else {
+        showToast('خطا در حذف دیدگاه.', 'error');
+      }
+    } catch {
+      showToast('خطا در برقراری ارتباط با سرور.', 'error');
+    }
+  };
+
   useEffect(() => {
-    if (token) {
+    if (token && user?.role === 'admin') {
       fetchAllAdminData();
 
       // Real-time synchronization for orders, products, and flash sales
@@ -136,7 +183,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ onNaviga
     } else {
       setIsLoading(false);
     }
-  }, [token]);
+  }, [token, user?.role]);
 
   // Update order status (automatically recalculates delivered metrics)
   const handleUpdateOrderStatus = async (orderId: string, newStatus: Order['status']) => {
@@ -546,6 +593,27 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ onNaviga
           >
             <span className="material-symbols-outlined text-lg">timer</span>
             <span>مدیریت فروش محدود</span>
+          </button>
+
+          {/* Product Reviews Moderation */}
+          <button
+            onClick={() => {
+              setActiveTab('reviews');
+              setIsMobileMenuOpen(false);
+            }}
+            className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl font-medium text-xs transition-all ${
+              activeTab === 'reviews'
+                ? 'bg-blue-600 text-white shadow-[0_0_20px_rgba(37,99,235,0.35)]'
+                : 'text-slate-600 dark:text-zinc-400 hover:bg-slate-100 dark:hover:bg-zinc-800/40 hover:text-slate-900 dark:hover:text-white'
+            }`}
+          >
+            <span className="material-symbols-outlined text-lg">rate_review</span>
+            <span>نظارت بر نظرات</span>
+            {adminReviews.filter((r) => r.status === 'pending').length > 0 && (
+              <span className="mr-auto px-1.5 py-0.5 rounded-full text-[10px] bg-amber-500 text-zinc-950 font-bold font-mono">
+                {adminReviews.filter((r) => r.status === 'pending').length}
+              </span>
+            )}
           </button>
 
           <button
@@ -1330,6 +1398,167 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ onNaviga
                   </button>
                 </div>
               </form>
+            </div>
+          )}
+
+          {/* TAB 5: REVIEWS MODERATION */}
+          {activeTab === 'reviews' && (
+            <div className="space-y-6">
+              {/* Header card with summary & stats */}
+              <div className="p-6 rounded-2xl border bg-white dark:bg-[#141417] border-slate-200 dark:border-white/[0.06] shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div>
+                  <h2 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                    <span className="material-symbols-outlined text-blue-500">rate_review</span>
+                    نظارت و مدیریت دیدگاه‌های کاربران
+                  </h2>
+                  <p className="text-xs text-slate-500 dark:text-zinc-400 mt-1">
+                    بررسی، تایید، پنهان‌سازی یا حذف نظرات ثبت‌شده برای تمامی محصولات فروشگاه
+                  </p>
+                </div>
+
+                {/* Filter Status buttons */}
+                <div className="flex items-center gap-2 flex-wrap">
+                  {[
+                    { id: 'all', label: 'همه نظرات' },
+                    { id: 'approved', label: 'تایید شده' },
+                    { id: 'pending', label: 'در انتظار تایید' },
+                    { id: 'rejected', label: 'پنهان / رد شده' },
+                  ].map((f) => (
+                    <button
+                      key={f.id}
+                      type="button"
+                      onClick={() => setReviewFilterStatus(f.id)}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-all ${
+                        reviewFilterStatus === f.id
+                          ? 'bg-blue-600 text-white shadow-sm'
+                          : 'bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-300 hover:bg-slate-200 dark:hover:bg-zinc-700'
+                      }`}
+                    >
+                      {f.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Reviews Table */}
+              <div className="rounded-2xl border bg-white dark:bg-[#141417] border-slate-200 dark:border-white/[0.06] shadow-sm overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-right text-xs">
+                    <thead className="bg-slate-50 dark:bg-[#18181c] border-b border-slate-200 dark:border-white/[0.06] text-slate-500 dark:text-zinc-400 font-semibold">
+                      <tr>
+                        <th className="p-4">محصول</th>
+                        <th className="p-4">کاربر</th>
+                        <th className="p-4">امتیاز</th>
+                        <th className="p-4 max-w-xs">متن نظر</th>
+                        <th className="p-4">وضعیت</th>
+                        <th className="p-4">تاریخ</th>
+                        <th className="p-4 text-center">عملیات نظارت</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 dark:divide-white/[0.04]">
+                      {adminReviews
+                        .filter((r) => (reviewFilterStatus === 'all' ? true : r.status === reviewFilterStatus))
+                        .map((rev) => (
+                          <tr key={rev.id} className="hover:bg-slate-50/50 dark:hover:bg-zinc-800/30 transition-colors">
+                            <td className="p-4">
+                              <div className="flex items-center gap-2.5">
+                                <img
+                                  src={rev.productImage || '/images/products/iphone-16-pro.png'}
+                                  alt=""
+                                  className="w-10 h-10 object-contain rounded-lg bg-slate-100 dark:bg-zinc-900 p-1"
+                                />
+                                <span className="font-medium text-slate-900 dark:text-white max-w-[160px] truncate">
+                                  {rev.productName}
+                                </span>
+                              </div>
+                            </td>
+                            <td className="p-4 font-medium text-slate-700 dark:text-zinc-300">
+                              <div className="flex flex-col">
+                                <span>{rev.userName}</span>
+                                {rev.isVerifiedPurchase && (
+                                  <span className="text-[10px] text-emerald-500">✓ خریدار تاییدشده</span>
+                                )}
+                              </div>
+                            </td>
+                            <td className="p-4">
+                              <div className="flex items-center gap-0.5 text-amber-500">
+                                {Array.from({ length: rev.rating || 5 }).map((_, i) => (
+                                  <span key={i} className="material-symbols-outlined text-xs">star</span>
+                                ))}
+                                <span className="font-mono text-[11px] text-slate-500 dark:text-zinc-400 mr-1">
+                                  ({rev.rating})
+                                </span>
+                              </div>
+                            </td>
+                            <td className="p-4 max-w-xs text-slate-600 dark:text-zinc-300 line-clamp-2 leading-relaxed">
+                              {rev.comment}
+                            </td>
+                            <td className="p-4">
+                              <span
+                                className={`px-2.5 py-1 rounded-full text-[10px] font-semibold border ${
+                                  rev.status === 'approved'
+                                    ? 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-500/30'
+                                    : rev.status === 'rejected'
+                                    ? 'bg-rose-50 dark:bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-200 dark:border-rose-500/30'
+                                    : 'bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-200 dark:border-amber-500/30'
+                                }`}
+                              >
+                                {rev.status === 'approved'
+                                  ? 'تایید شده'
+                                  : rev.status === 'rejected'
+                                  ? 'پنهان‌شده'
+                                  : 'در انتظار'}
+                              </span>
+                            </td>
+                            <td className="p-4 font-mono text-[11px] text-slate-500 dark:text-zinc-400 whitespace-nowrap">
+                              {new Date(rev.createdAt).toLocaleDateString('fa-IR')}
+                            </td>
+                            <td className="p-4 text-center whitespace-nowrap">
+                              <div className="flex items-center justify-center gap-2">
+                                {rev.status !== 'approved' && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleUpdateReviewStatus(rev.id, 'approved')}
+                                    className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-medium transition-colors"
+                                    title="تایید و نمایش در فروشگاه"
+                                  >
+                                    تایید
+                                  </button>
+                                )}
+                                {rev.status !== 'rejected' && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleUpdateReviewStatus(rev.id, 'rejected')}
+                                    className="px-2.5 py-1 rounded-lg bg-zinc-700 hover:bg-zinc-600 text-zinc-200 text-[11px] font-medium transition-colors"
+                                    title="پنهان کردن از ویترین"
+                                  >
+                                    پنهان‌سازی
+                                  </button>
+                                )}
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeleteAdminReview(rev.id)}
+                                  className="px-2.5 py-1 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-[11px] font-medium transition-colors"
+                                  title="حذف کامل از دیتابیس"
+                                >
+                                  حذف
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+
+                      {adminReviews.length === 0 && (
+                        <tr>
+                          <td colSpan={7} className="p-8 text-center text-slate-400 text-xs">
+                            دیدگاهی در پایگاه داده ثبت نشده است.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
             </div>
           )}
         </main>

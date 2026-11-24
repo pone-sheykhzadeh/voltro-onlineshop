@@ -3,6 +3,7 @@ import { useTheme } from '../context/ThemeContext.tsx';
 import { useAuth } from '../context/AuthContext.tsx';
 import { useCart } from '../context/CartContext.tsx';
 import { useFavorites } from '../context/FavoritesContext.tsx';
+import { useComparison } from '../context/ComparisonContext.tsx';
 
 interface NavbarProps {
   currentPath: string;
@@ -15,6 +16,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPath, onNavigate, onSearc
   const { user, openAuthModal, logout } = useAuth();
   const { itemCount } = useCart();
   const { favoritesCount } = useFavorites();
+  const { count: comparisonCount } = useComparison();
   const [searchQuery, setSearchQuery] = useState('');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
@@ -132,6 +134,23 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPath, onNavigate, onSearc
             )}
           </button>
 
+          {/* Comparison Button */}
+          <button
+            onClick={() => onNavigate('compare')}
+            aria-label="مقایسه محصولات"
+            title="مقایسه تخصصی کالاها"
+            className="relative p-2 rounded-full transition-all border text-slate-600 dark:text-zinc-400 hover:text-amber-500 dark:hover:text-amber-400 bg-slate-100 dark:bg-[#141417] border-slate-200 dark:border-white/[0.06] cursor-pointer shadow-xs"
+          >
+            <span className={`material-symbols-outlined text-lg ${comparisonCount > 0 ? 'text-amber-500' : ''}`}>
+              compare_arrows
+            </span>
+            {comparisonCount > 0 && (
+              <span className="absolute -top-1 -left-1 w-4 h-4 rounded-full bg-amber-500 text-zinc-950 font-mono text-[10px] font-bold flex items-center justify-center shadow-[0_0_10px_rgba(245,158,11,0.6)]">
+                {comparisonCount}
+              </span>
+            )}
+          </button>
+
           {/* Shopping Cart Button */}
           <button
             onClick={() => onNavigate('cart')}
@@ -153,11 +172,17 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPath, onNavigate, onSearc
                 onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
                 className="flex items-center gap-2 p-1 rounded-full border border-slate-200 dark:border-white/[0.08] hover:border-blue-500/50 transition-all cursor-pointer"
               >
-                <img
-                  src={user.avatar || 'https://lh3.googleusercontent.com/aida-public/AB6AXuDDFf26GXqr-2c3bJ3L1A3MwQX5syyjKNU29_8haSa6wY-ehOAyVT9h0KPPuqZyBeNW-3ZtlnhTQBGbWqAJunHAjm8IELD3Oij-0TKsEVXjgxxSMai0bjZ-a5vjlTaCyC0etuntG4xCLek869jGnUh_zAsTDnZvcGknpApu4InT2qhAaD6_L9EuZXj58x38FBEJTE--zSBsugndzEPNdZBaU1y84sO1B3O1_AoHFWVNCpzx1F7Rflc'}
-                  alt={user.name}
-                  className="w-8 h-8 rounded-full object-cover ring-1 ring-blue-500/40"
-                />
+                {user.avatar ? (
+                  <img
+                    src={user.avatar}
+                    alt={user.name}
+                    className="w-8 h-8 rounded-full object-cover ring-1 ring-blue-500/40"
+                  />
+                ) : (
+                  <div className="w-8 h-8 rounded-full bg-blue-600/15 text-blue-500 flex items-center justify-center ring-1 ring-blue-500/40 font-bold text-xs">
+                    {user.name?.charAt(0) || 'V'}
+                  </div>
+                )}
               </button>
 
               {isProfileMenuOpen && (
@@ -166,8 +191,8 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPath, onNavigate, onSearc
                     <p className="text-xs font-semibold text-slate-900 dark:text-white truncate">
                       {user.name}
                     </p>
-                    <p className="text-[11px] text-slate-500 dark:text-zinc-400 truncate">
-                      {user.email}
+                    <p className="text-[11px] text-slate-500 dark:text-zinc-400 truncate font-mono" dir="ltr">
+                      {user.username || user.email}
                     </p>
                     {user.role === 'admin' && (
                       <span className="inline-block mt-1 px-2 py-0.5 rounded-full text-[9px] bg-blue-500/20 text-blue-600 dark:text-blue-400 font-semibold border border-blue-500/30">
@@ -289,6 +314,27 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPath, onNavigate, onSearc
               {favoritesCount > 0 && (
                 <span className="px-2 py-0.5 rounded-full text-xs font-mono font-bold bg-rose-500 text-white">
                   {favoritesCount}
+                </span>
+              )}
+            </button>
+            <button
+              onClick={() => {
+                setIsMobileMenuOpen(false);
+                onNavigate('compare');
+              }}
+              className={`text-right px-4 py-2.5 rounded-xl text-sm font-medium transition-all flex items-center justify-between cursor-pointer ${
+                currentPath === 'compare'
+                  ? 'bg-blue-600 text-white'
+                  : 'text-slate-700 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-800/40'
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                <span className="material-symbols-outlined text-base text-amber-500">compare_arrows</span>
+                <span>مقایسه محصولات</span>
+              </div>
+              {comparisonCount > 0 && (
+                <span className="px-2 py-0.5 rounded-full text-xs font-mono font-bold bg-amber-500 text-zinc-950">
+                  {comparisonCount}
                 </span>
               )}
             </button>

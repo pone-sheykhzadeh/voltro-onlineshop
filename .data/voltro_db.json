@@ -7,10 +7,11 @@
       "email": "admin@voltro.ir",
       "role": "admin",
       "phone": "09121112233",
-      "avatar": "https://lh3.googleusercontent.com/aida-public/AB6AXuDDFf26GXqr-2c3bJ3L1A3MwQX5syyjKNU29_8haSa6wY-ehOAyVT9h0KPPuqZyBeNW-3ZtlnhTQBGbWqAJunHAjm8IELD3Oij-0TKsEVXjgxxSMai0bjZ-a5vjlTaCyC0etuntG4xCLek869jGnUh_zAsTDnZvcGknpApu4InT2qhAaD6_L9EuZXj58x38FBEJTE--zSBsugndzEPNdZBaU1y84sO1B3O1_AoHFWVNCpzx1F7Rflc",
+      "avatar": "",
       "passwordHash": "bca7ae6188771c6ac67a06c33240c3d6494345eaf03e76a19ecf769dc965048e20182208077ec826a6d5c453b30f03cc33ae704c2ba0bafa8df97709d0749465",
       "salt": "89aa4d04b851396483da3aaf77c9d1fa",
-      "createdAt": "2026-10-13T00:56:23.252Z"
+      "createdAt": "2026-10-13T00:56:23.252Z",
+      "username": "admin@voltro.ir"
     },
     {
       "id": "usr-demo-01",
@@ -18,10 +19,11 @@
       "email": "user@voltro.ir",
       "role": "customer",
       "phone": "09351234567",
-      "avatar": "https://lh3.googleusercontent.com/aida-public/AB6AXuDDFf26GXqr-2c3bJ3L1A3MwQX5syyjKNU29_8haSa6wY-ehOAyVT9h0KPPuqZyBeNW-3ZtlnhTQBGbWqAJunHAjm8IELD3Oij-0TKsEVXjgxxSMai0bjZ-a5vjlTaCyC0etuntG4xCLek869jGnUh_zAsTDnZvcGknpApu4InT2qhAaD6_L9EuZXj58x38FBEJTE--zSBsugndzEPNdZBaU1y84sO1B3O1_AoHFWVNCpzx1F7Rflc",
+      "avatar": "",
       "passwordHash": "f7fb46363b51283afff4de8880084ac7256c31e92d96c6c749d7a792e85ed85740be609249fe2bcaf8e72a02af3d32b310e3d5b2a68715103d6b20fd62b88429",
       "salt": "5e68084c2faa007a39494edef1f1a455",
-      "createdAt": "2026-10-13T00:56:23.252Z"
+      "createdAt": "2026-10-13T00:56:23.252Z",
+      "username": "user@voltro.ir"
     }
   ],
   "categories": [
@@ -131,7 +133,20 @@
         "display": "مقاوم در برابر تعریق و گرد و غبار با استاندارد IP54 برای هر دو گوشی و کیس",
         "battery": "تا 6 ساعت گوش دادن با ANC و تا 30 ساعت همراه با کیس شارژ",
         "ports": "کیس مجهز به درگاه USB-C و شارژ مغناطیسی MagSafe / Apple Watch Charger",
-        "weight": "5.3 گرم هر گوشی"
+        "weight": "5.3 گرم هر گوشی",
+        "os": "AirPods Firmware",
+        "chipset": "Apple H2 در گوشی‌ها و Apple U1 در کیس شارژ",
+        "ram": "—",
+        "storage": "—",
+        "displaySize": "— (هدفون توگوشی In-Ear)",
+        "displayTech": "سری‌های سیلیکونی در 4 سایز با استاندارد ضدآب IP54",
+        "resolution": "درایور با گستره داینامیکی بالا و آمپلی‌فایر سفارشی",
+        "refreshRate": "—",
+        "mainCamera": "میکروفون‌های دوگانه پرتو شکل‌دهنده و میکروفون رو به داخل",
+        "frontCamera": "—",
+        "batteryCapacity": "6 ساعت گوش دادن (تا 30 ساعت با کیس شارژ)",
+        "chargingSpeed": "شارژ سریع 5 دقیقه برای 1 ساعت، درگاه USB-C، شارژر بی‌سیم MagSafe",
+        "connectivity": "بلوتوث 5.3، درگاه USB-C، کیس شارژ اسپیکردار با Find My"
       },
       "rating": 4.8,
       "reviewCount": 71,
@@ -210,7 +225,19 @@
         "battery": "عمر باتری 22 ساعت، باتری 100 وات‌ساعت با آداپتور شارژ سریع 140 واتی USB-C",
         "ports": "3 پورت Thunderbolt 4، خروجی HDMI 8K، درگاه SDXC، جک هدفون های‌امپدانس و شارژ ایمن MagSafe 3",
         "weight": "2.16 کیلوگرم",
-        "os": "macOS Sequoia"
+        "os": "macOS Sequoia",
+        "chipset": "Apple M3 Max (16 هسته CPU، 40 هسته GPU، موتور عصبی 16 هسته‌ای)",
+        "ram": "36 گیگابایت Unified Memory یکپارچه",
+        "storage": "512 گیگابایت / 1 ترابایت SSD فوق‌سریع",
+        "displaySize": "16.2 اینچ",
+        "displayTech": "Liquid Retina XDR مینی‌ال‌ای‌دی با روشنایی اوج 1600 نیت",
+        "resolution": "3456 × 2234 پیکسل (254 ppi)",
+        "refreshRate": "120 هرتز ProMotion تطبیق‌پذیر",
+        "mainCamera": "وبکم 1080p FaceTime HD با پردازش تصویر محاسباتی",
+        "frontCamera": "1080p FaceTime HD Camera",
+        "batteryCapacity": "100 وات‌ساعت (تا 22 ساعت شارژدهی)",
+        "chargingSpeed": "شارژ سریع 140 وات با پورت USB-C و MagSafe 3",
+        "connectivity": "3 پورت Thunderbolt 4 (USB-C)، درگاه HDMI، شیار SDXC، جک 3.5mm، Wi-Fi 6E، بلوتوث 5.3"
       },
       "rating": 5,
       "reviewCount": 38,
@@ -278,14 +305,26 @@
       "specifications": {
         "processor": "تراشه A17 Pro (6 هسته پردازشی با پردازنده گرافیکی 6 هسته‌ای و ری‌تریسینگ سخت‌افزاری)",
         "display": "6.7 اینچ Super Retina XDR OLED، نرخ نوسازی 120 هرتز، داینامیک آیلند، اوج روشنایی 2000 نیت",
-        "camera": "دوربین اصلی 48 مگاپیکسل با سنسور 24 مگاپیکسلی پیش‌فرض، تله‌فوتو 5 برابری پریسکوپ 120 میلی‌متری",
+        "camera": "دوربین اصلی 48 مگاپیکسل، تله‌فوتو 5 برابری پریسکوپ 120 میلی‌متری و 12MP اولتراواید",
         "battery": "عمر باتری 29 ساعت پخش مداوم ویدیو با پشتیبانی از MagSafe و شارژ سریع 50٪ در 30 دقیقه",
         "ports": "درگاه USB-C با استاندارد USB 3 (سرعت انتقال تا 10Gb/s)",
         "weight": "221 گرم",
-        "os": "iOS 18"
+        "os": "iOS 18 با پشتیبانی اپل اینتلیجنس",
+        "chipset": "Apple A17 Pro (3 نانومتری)",
+        "ram": "8 گیگابایت LPDDR5X",
+        "storage": "256 / 512 گیگابایت / 1 ترابایت NVMe",
+        "displaySize": "6.7 اینچ",
+        "displayTech": "Super Retina XDR OLED با سرامیک شیلد",
+        "resolution": "2796 × 1290 پیکسل (460 ppi)",
+        "refreshRate": "120 هرتز ProMotion تطبیق‌پذیر",
+        "mainCamera": "48MP اصلی f/1.78 + 12MP پریسکوپ 5x + 12MP اولتراواید و LiDAR",
+        "frontCamera": "12MP TrueDepth با فوکوس خودکار f/1.9 و فیلمبرداری 4K60",
+        "batteryCapacity": "4441 میلی‌آمپر ساعت",
+        "chargingSpeed": "27 وات باسیم (50٪ در 30 دقیقه) و 15 وات بی‌سیم MagSafe",
+        "connectivity": "5G Sub-6/mmWave، Wi-Fi 6E دو بانده، بلوتوث 5.3، درگاه USB-C 3.2 Gen 2 (10Gbps)، UWB نسل دوم"
       },
-      "rating": 4.9,
-      "reviewCount": 95,
+      "rating": 5,
+      "reviewCount": 0,
       "isFeatured": true,
       "isFlashDeal": true,
       "soldCount": 86,
@@ -343,7 +382,20 @@
         "battery": "36 ساعت استفاده عادی و تا 72 ساعت در حالت ذخیره باتری (Low Power)",
         "ports": "شارژ مغناطیسی سریع بی‌سیم با کابل بافته‌شده تیتانیومی",
         "sensors": "ECG نوار قلب، اکسیژن خون، حسگر دمای آب و عمق‌سنج، آژیر اضطراری 86 دسی‌بل",
-        "weight": "61.4 گرم"
+        "weight": "61.4 گرم",
+        "os": "watchOS 11",
+        "chipset": "Apple S9 SiP با پردازنده 4 هسته‌ای هوش مصنوعی و جسچر دابل تپ",
+        "ram": "2 گیگابایت",
+        "storage": "64 گیگابایت حافظه داخلی",
+        "displaySize": "1.92 اینچ (فریم 49 میلی‌متری تیتانیومی)",
+        "displayTech": "Always-On Retina LTPO OLED با کریستال یاقوت کبود",
+        "resolution": "502 × 410 پیکسل",
+        "refreshRate": "60 هرتز (1 تا 60 هرتز)",
+        "mainCamera": "ندارد (ساعت هوشمند)",
+        "frontCamera": "ندارد",
+        "batteryCapacity": "564 میلی‌آمپر ساعت (36 تا 72 ساعت)",
+        "chargingSpeed": "شارژ مغناطیسی بی‌سیم سریع",
+        "connectivity": "LTE / سلولار مستقل، Wi-Fi دو بانده، بلوتوث 5.3، چیپ UWB نسل دوم، GPS دو فرکانسه L1/L5"
       },
       "rating": 4.9,
       "reviewCount": 42,
@@ -403,7 +455,20 @@
         "display": "بدنه آلومینیومی آندایز شده با بالشتک‌های مموری‌فوم قابل تنفس و هدبند مشبک توری",
         "battery": "20 ساعت شارژدهی مستمر با فعال بودن ANC و Spatial Audio، شارژ سریع 5 دقیقه برای 1.5 ساعت",
         "ports": "اتصال بلوتوث 5.0 کم‌تاخیر و درگاه Lightning / Type-C",
-        "weight": "384 گرم"
+        "weight": "384 گرم",
+        "os": "AirPods Firmware اختصاصی",
+        "chipset": "دو پردازنده Apple H1 با موتور آکوستیک محاسباتی",
+        "ram": "—",
+        "storage": "—",
+        "displaySize": "— (هدفون روگوشی Over-Ear)",
+        "displayTech": "بالشتک مموری‌فوم قابل تنفس با بدنه آلومینیومی ارگونومیک",
+        "resolution": "درایور داینامیک سفارشی 40 میلی‌متری اپل",
+        "refreshRate": "—",
+        "mainCamera": "9 میکروفون استودیویی (8 میکروفون برای ANC و 3 میکروفون مکالمه)",
+        "frontCamera": "—",
+        "batteryCapacity": "20 ساعت با ANC و صدای فضایی روشن",
+        "chargingSpeed": "شارژ سریع: 5 دقیقه شارژ برای 1.5 ساعت پخش",
+        "connectivity": "بلوتوث 5.0 کم‌تاخیر با سوئیچ آنی بین دستگاه‌های اکوسیستم اپل، درگاه Type-C"
       },
       "rating": 4.9,
       "reviewCount": 64,
@@ -464,7 +529,19 @@
         "battery": "5000 میلی‌آمپر ساعت با شارژ 45 وات سیمی و 15 وات بی‌سیم معکوس",
         "ports": "USB-C 3.2 Gen 1 با پشتیبانی از Samsung DeX",
         "weight": "232 گرم",
-        "os": "Android 15 با One UI 7 و 7 سال آپدیت تضمینی"
+        "os": "Android 15 با One UI 7 و Galaxy AI و 7 سال پشتیبانی نرم‌افزاری",
+        "chipset": "Qualcomm Snapdragon 8 Gen 3 for Galaxy (4 نانومتری)",
+        "ram": "12 گیگابایت LPDDR5X",
+        "storage": "256 / 512 گیگابایت / 1 ترابایت UFS 4.0",
+        "displaySize": "6.8 اینچ",
+        "displayTech": "Dynamic LTPO AMOLED 2X شیشه ضدبازتاب Gorilla Armor",
+        "resolution": "3120 × 1440 پیکسل QHD+ (505 ppi)",
+        "refreshRate": "120 هرتز متغیر (1 تا 120 هرتز)",
+        "mainCamera": "200MP اصلی OIS + 50MP پریسکوپ 5x + 10MP تله 3x + 12MP اولتراواید با زوم 100x",
+        "frontCamera": "12MP Dual Pixel با فوکوس خودکار و فیلمبرداری 4K60",
+        "batteryCapacity": "5000 میلی‌آمپر ساعت",
+        "chargingSpeed": "45 وات باسیم (65٪ در 30 دقیقه)، 15 وات بی‌سیم و 4.5 وات معکوس",
+        "connectivity": "5G، Wi-Fi 7 سه بانده، بلوتوث 5.3، درگاه USB-C 3.2، قلم S-Pen بلوتوثی، Samsung DeX"
       },
       "rating": 4.8,
       "reviewCount": 52,
@@ -512,7 +589,20 @@
         "display": "آلومینیوم آنودایز شده با گریل مشبک ضدآب و بند چرم طبیعی ضدخش",
         "battery": "تا 18 ساعت پخش موسیقی مداوم در ولوم نرمال",
         "ports": "بلوتوث 5.1 با کدک aptX Adaptive و درگاه Type-C",
-        "weight": "558 گرم"
+        "weight": "558 گرم",
+        "os": "B&O Signature Software",
+        "chipset": "DSP دیجیتال پیشرفته با آمپلی‌فایر دوکاناله 30W کلاس D",
+        "ram": "—",
+        "storage": "—",
+        "displaySize": "— (اسپیکر قابل حمل)",
+        "displayTech": "آلومینیوم آندایز شده مقاوم با گواهی کامل ضدآب و گردوغبار IP67",
+        "resolution": "ووفر 3.5 اینچ + توییتر 0.6 اینچ با توان خروجی پیک 2×140W",
+        "refreshRate": "—",
+        "mainCamera": "آرایه 3 میکروفونی 360 درجه برای دستیار صوتی و مکالمه",
+        "frontCamera": "—",
+        "batteryCapacity": "3000 میلی‌آمپر ساعت (تا 18 ساعت پخش موسیقی)",
+        "chargingSpeed": "شارژ با پورت USB-C (2.75 ساعت برای شارژ کامل)",
+        "connectivity": "بلوتوث 5.1، کدک‌های aptX Adaptive و AAC، اتصال همزمان به دو دستگاه، پشتیبانی Alexa"
       },
       "rating": 4.7,
       "reviewCount": 19,
@@ -564,10 +654,25 @@
         }
       ],
       "specifications": {
-        "processor": "پردازنده نسل جدید",
-        "display": "نمایشگر OLED Super Retina",
-        "battery": "شارژدهی طولانی با فست شارژ",
-        "camera": "سیستم دوربین پیشرفته"
+        "processor": "Apple A15 Bionic (6 هسته CPU، 5 هسته GPU)",
+        "display": "6.1 اینچ Super Retina XDR OLED با سرامیک شیلد و روشنایی 1200 نیت",
+        "battery": "عمر باتری تا 20 ساعت پخش ویدیو با پشتیبانی از MagSafe",
+        "camera": "دوگانه 12MP اصلی با سنسور شیفت OIS و 12MP اولتراواید",
+        "ports": "درگاه استاندارد شارژ سریع و انتقال داده",
+        "weight": "172 گرم",
+        "os": "iOS 18",
+        "chipset": "Apple A15 Bionic (5 نانومتری ارتقایافته)",
+        "ram": "6 گیگابایت LPDDR4X",
+        "storage": "128 / 256 گیگابایت NVMe",
+        "displaySize": "6.1 اینچ",
+        "displayTech": "Super Retina XDR OLED با Ceramic Shield",
+        "resolution": "2532 × 1170 پیکسل (460 ppi)",
+        "refreshRate": "60 هرتز",
+        "mainCamera": "دوگانه 12MP اصلی f/1.5 با سنسور شیفت + 12MP اولتراواید",
+        "frontCamera": "12MP TrueDepth با فوکوس خودکار f/1.9",
+        "batteryCapacity": "3279 میلی‌آمپر ساعت",
+        "chargingSpeed": "20 وات باسیم (50٪ در 30 دقیقه) و 15 وات بی‌سیم MagSafe",
+        "connectivity": "5G، Wi-Fi 6 دو بانده، بلوتوث 5.3، درگاه شارژ استاندارد"
       },
       "id": "prod-55681b96-563e-4e9e-9705-5b7f2dc9a733",
       "createdAt": "2026-10-17T09:56:19.020Z"
@@ -607,10 +712,25 @@
         }
       ],
       "specifications": {
-        "processor": "پردازنده نسل جدید",
-        "display": "نمایشگر OLED Super Retina",
-        "battery": "شارژدهی طولانی با فست شارژ",
-        "camera": "سیستم دوربین پیشرفته"
+        "processor": "Apple A15 Bionic (6 هسته CPU، 5 هسته GPU)",
+        "display": "6.1 اینچ Super Retina XDR OLED با سرامیک شیلد و روشنایی 1200 نیت",
+        "battery": "عمر باتری تا 20 ساعت پخش ویدیو با پشتیبانی از MagSafe",
+        "camera": "دوگانه 12MP اصلی با سنسور شیفت OIS و 12MP اولتراواید",
+        "ports": "درگاه استاندارد شارژ سریع و انتقال داده",
+        "weight": "172 گرم",
+        "os": "iOS 18",
+        "chipset": "Apple A15 Bionic (5 نانومتری ارتقایافته)",
+        "ram": "6 گیگابایت LPDDR4X",
+        "storage": "128 / 256 گیگابایت NVMe",
+        "displaySize": "6.1 اینچ",
+        "displayTech": "Super Retina XDR OLED با Ceramic Shield",
+        "resolution": "2532 × 1170 پیکسل (460 ppi)",
+        "refreshRate": "60 هرتز",
+        "mainCamera": "دوگانه 12MP اصلی f/1.5 با سنسور شیفت + 12MP اولتراواید",
+        "frontCamera": "12MP TrueDepth با فوکوس خودکار f/1.9",
+        "batteryCapacity": "3279 میلی‌آمپر ساعت",
+        "chargingSpeed": "20 وات باسیم (50٪ در 30 دقیقه) و 15 وات بی‌سیم MagSafe",
+        "connectivity": "5G، Wi-Fi 6 دو بانده، بلوتوث 5.3، درگاه شارژ استاندارد"
       },
       "id": "prod-12f7e831-3e91-43a3-a8a7-71085e1b3137",
       "createdAt": "2026-10-17T09:58:10.715Z"
@@ -634,10 +754,25 @@
         "Ultra Retina"
       ],
       "specifications": {
-        "processor": "تراشه Apple M4 (10 هسته پردازشی + 10 هسته گرافیکی + موتور عصبی 16 هسته‌ای)",
-        "display": "13 اینچ Ultra Retina XDR Tandem OLED، اوج روشنایی 1600 نیت، نرخ 120Hz ProMotion",
-        "battery": "38.99 وات ساعت با کارکرد مداوم 10 ساعت وبگردی و ویدیو",
-        "camera": "دوربین عریض 12 مگاپیکسل با فلاش True Tone تطبیقی و اسکنر LiDAR"
+        "processor": "Apple M4 (9 هسته CPU، 10 هسته GPU، موتور عصبی 16 هسته‌ای)",
+        "display": "13.0 اینچ Ultra Retina XDR، پنل Tandem OLED دولایه، روشنایی 1600 نیت، ProMotion 120Hz",
+        "battery": "38.99 وات‌ساعت با شارژدهی تا 10 ساعت وبگردی و تماشای ویدیو",
+        "camera": "دوربین اصلی 12 مگاپیکسل با اسکنر LiDAR و دوربین سلفی 12 مگاپیکسل افقی Center Stage",
+        "ports": "پورت Thunderbolt / USB 4 با سرعت 40Gb/s",
+        "weight": "579 گرم",
+        "os": "iPadOS 18",
+        "chipset": "Apple M4 (9 هسته CPU، 10 هسته GPU، موتور عصبی 16 هسته‌ای)",
+        "ram": "8 گیگابایت / 16 گیگابایت",
+        "storage": "256 / 512 گیگابایت / 1 ترابایت",
+        "displaySize": "13.0 اینچ",
+        "displayTech": "Ultra Retina XDR با فناوری Tandem OLED دولایه",
+        "resolution": "2752 × 2064 پیکسل (264 ppi)",
+        "refreshRate": "120 هرتز ProMotion تطبیق‌پذیر",
+        "mainCamera": "12MP واید f/1.8 با اسکنر LiDAR و فلاش انطباقی True Tone",
+        "frontCamera": "12MP افقی اولتراواید با سنتر استیج (Center Stage)",
+        "batteryCapacity": "38.99 وات‌ساعت (حدود 10200 میلی‌آمپر ساعت)",
+        "chargingSpeed": "شارژ سریع 30 وات با پورت تاندربولت / USB 4",
+        "connectivity": "Thunderbolt / USB 4 (تا 40Gb/s)، Wi-Fi 6E، بلوتوث 5.3، پشتیبانی از قلم Apple Pencil Pro"
       },
       "id": "prod-500eec8d-e188-4f5b-b919-8053436f3b21",
       "slug": "ipad-pro-13-inch-m4-titanium",
@@ -686,14 +821,14 @@
       "userId": "usr-admin-01",
       "items": [
         {
-          "id": "cart-item-1792230792618-0.23254500135044176",
+          "id": "cart-1d4b8d1f-eb9b-445f-8358-28f04324ad7a",
           "productId": "prod-apple-watch-ultra-2",
           "variantId": "var-watch-u2-trail",
           "quantity": 2,
-          "addedAt": "2026-10-17T09:49:52.198Z"
+          "addedAt": "2026-11-24T13:52:54.352Z"
         }
       ],
-      "updatedAt": "2026-10-17T09:49:52.198Z"
+      "updatedAt": "2026-11-24T13:52:54.352Z"
     }
   ],
   "orders": [
@@ -1003,7 +1138,11 @@
       "rating": 5,
       "comment": "قدرت پردازش مدل‌های زبان بزرگ محلی روی M3 Max خیره‌کننده است. صفحه نمایش Liquid Retina XDR در تاریکی مطلق هیچ نشت نوری ندارد.",
       "createdAt": "2026-10-13T00:56:23.252Z",
-      "isVerifiedPurchase": true
+      "isVerifiedPurchase": true,
+      "status": "approved",
+      "helpfulCount": 7,
+      "helpfulUserIds": [],
+      "updatedAt": "2026-10-13T00:56:23.252Z"
     },
     {
       "id": "rev-02",
@@ -1013,7 +1152,11 @@
       "rating": 5,
       "comment": "تفکیک فرکانسی ساب‌بیس و تریبل فوق‌العاده تمیزه. نویز کنسلینگ حتی صدای مترو و شلوغی استودیو رو کامل حذف می‌کنه.",
       "createdAt": "2026-10-13T00:56:23.252Z",
-      "isVerifiedPurchase": true
+      "isVerifiedPurchase": true,
+      "status": "approved",
+      "helpfulCount": 5,
+      "helpfulUserIds": [],
+      "updatedAt": "2026-10-13T00:56:23.252Z"
     }
   ],
   "favorites": [
@@ -1309,6 +1452,96 @@
       "details": "ویرایش کمپین: جشنواره فروش محدود ولترو (Flash Sale)",
       "ip": "127.0.0.1",
       "timestamp": "2026-10-17T10:15:51.318Z"
+    },
+    {
+      "id": "audit-e0f059c3-6afa-425d-993f-983cf0dd50a7",
+      "userId": "usr-demo-01",
+      "userName": "پوریا بهرامی",
+      "action": "LOGIN",
+      "target": "User",
+      "details": "ورود موفق به حساب کاربری",
+      "ip": "127.0.0.1",
+      "timestamp": "2026-11-24T13:35:05.312Z"
+    },
+    {
+      "id": "audit-bd8264b1-015d-475b-b124-9a691e989865",
+      "userId": "usr-admin-01",
+      "userName": "مدیر ارشد ولترو",
+      "action": "LOGIN",
+      "target": "User",
+      "details": "ورود موفق به حساب کاربری",
+      "ip": "127.0.0.1",
+      "timestamp": "2026-11-24T13:35:05.401Z"
+    },
+    {
+      "id": "audit-f75da178-85c7-4625-8e26-91693dc52ae1",
+      "userId": "usr-demo-01",
+      "userName": "پوریا بهرامی",
+      "action": "LOGIN",
+      "target": "User",
+      "details": "ورود موفق به حساب کاربری",
+      "ip": "127.0.0.1",
+      "timestamp": "2026-11-24T13:36:00.198Z"
+    },
+    {
+      "id": "audit-5a602d7a-f7c5-49d7-aaf2-1a1b355855e9",
+      "userId": "usr-admin-01",
+      "userName": "مدیر ارشد ولترو",
+      "action": "LOGIN",
+      "target": "User",
+      "details": "ورود موفق به حساب کاربری",
+      "ip": "127.0.0.1",
+      "timestamp": "2026-11-24T13:36:00.285Z"
+    },
+    {
+      "id": "audit-2ba75ca0-aa58-4c7f-a10f-ead7c7ee3ed3",
+      "userId": "usr-admin-01",
+      "userName": "مدیر ارشد ولترو",
+      "action": "LOGIN",
+      "target": "User",
+      "details": "ورود موفق به حساب کاربری",
+      "ip": "127.0.0.1",
+      "timestamp": "2026-11-24T13:42:59.445Z"
+    },
+    {
+      "id": "audit-1d7f13ed-fe08-42b1-9576-9a974d8ea220",
+      "userId": "usr-admin-01",
+      "userName": "مدیر ارشد ولترو",
+      "action": "LOGIN",
+      "target": "User",
+      "details": "ورود موفق به حساب کاربری",
+      "ip": "127.0.0.1",
+      "timestamp": "2026-11-24T13:52:35.098Z"
+    },
+    {
+      "id": "audit-d47c66e2-0bbe-4019-b9c0-6ebfe580a7d5",
+      "userId": "usr-demo-01",
+      "userName": "پوریا بهرامی",
+      "action": "LOGIN",
+      "target": "User",
+      "details": "ورود موفق به حساب کاربری",
+      "ip": "127.0.0.1",
+      "timestamp": "2026-11-24T13:52:35.170Z"
+    },
+    {
+      "id": "audit-a52f7c65-9434-4478-b67f-096ff44ed615",
+      "userId": "usr-admin-01",
+      "userName": "مدیر ارشد ولترو",
+      "action": "LOGIN",
+      "target": "User",
+      "details": "ورود موفق به حساب کاربری",
+      "ip": "127.0.0.1",
+      "timestamp": "2026-11-24T13:52:45.250Z"
+    },
+    {
+      "id": "audit-c238f03a-5a23-462e-9af4-94db5c686991",
+      "userId": "usr-admin-01",
+      "userName": "مدیر ارشد ولترو",
+      "action": "LOGIN",
+      "target": "User",
+      "details": "ورود موفق به حساب کاربری",
+      "ip": "127.0.0.1",
+      "timestamp": "2026-11-24T13:52:54.328Z"
     }
   ]
 }
