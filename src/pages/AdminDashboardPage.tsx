@@ -95,13 +95,19 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ onNaviga
             setSelectedProductIds(firstCamp.eligibleProductIds || []);
             setProductDiscounts(firstCamp.productDiscounts || {});
             
-            // Format dates for datetime-local input
+            // Format dates in local timezone for datetime-local input
+            const toLocalInput = (value: string | Date) => {
+              const d = new Date(value);
+              if (Number.isNaN(d.getTime())) return '';
+              const offsetMs = d.getTimezoneOffset() * 60_000;
+              return new Date(d.getTime() - offsetMs).toISOString().slice(0, 16);
+            };
             try {
-              setSaleStartDate(new Date(firstCamp.startDate).toISOString().slice(0, 16));
-              setSaleEndDate(new Date(firstCamp.endDate).toISOString().slice(0, 16));
+              setSaleStartDate(toLocalInput(firstCamp.startDate) || toLocalInput(new Date()));
+              setSaleEndDate(toLocalInput(firstCamp.endDate) || toLocalInput(new Date(Date.now() + 48 * 3600 * 1000)));
             } catch (e) {
-              setSaleStartDate(new Date().toISOString().slice(0, 16));
-              setSaleEndDate(new Date(Date.now() + 48 * 3600 * 1000).toISOString().slice(0, 16));
+              setSaleStartDate(toLocalInput(new Date()));
+              setSaleEndDate(toLocalInput(new Date(Date.now() + 48 * 3600 * 1000)));
             }
           }
         }
@@ -407,17 +413,34 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ onNaviga
       return;
     }
 
+    const resolvedStart = saleStartDate ? new Date(saleStartDate) : new Date();
+    const resolvedEnd = saleEndDate ? new Date(saleEndDate) : new Date(Date.now() + 48 * 3600 * 1000);
+    if (Number.isNaN(resolvedStart.getTime()) || Number.isNaN(resolvedEnd.getTime())) {
+      showToast('بازه زمانی وارد شده معتبر نیست.', 'error');
+      return;
+    }
+    if (resolvedEnd.getTime() <= resolvedStart.getTime()) {
+      showToast('تاریخ و ساعت پایان تخفیف باید بعد از زمان شروع باشد.', 'error');
+      return;
+    }
+
     setIsSavingSale(true);
     try {
+      const normalizedDiscounts: Record<string, number> = {};
+      for (const pid of selectedProductIds) {
+        const pct = Number(productDiscounts[pid] ?? defaultDiscount);
+        normalizedDiscounts[pid] = pct > 0 && pct < 100 ? pct : (Number(defaultDiscount) || 10);
+      }
+
       const payload: Partial<FlashCampaign> = {
         title: saleTitle,
         bannerText: saleBannerText,
         discountPercent: Number(defaultDiscount) || 10,
         isActive: isSaleEnabled,
         eligibleProductIds: selectedProductIds,
-        productDiscounts: productDiscounts,
-        startDate: saleStartDate ? new Date(saleStartDate).toISOString() : new Date().toISOString(),
-        endDate: saleEndDate ? new Date(saleEndDate).toISOString() : new Date(Date.now() + 48 * 3600 * 1000).toISOString(),
+        productDiscounts: normalizedDiscounts,
+        startDate: resolvedStart.toISOString(),
+        endDate: resolvedEnd.toISOString(),
       };
 
       const existingCamp = campaigns[0];

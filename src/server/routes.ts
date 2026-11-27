@@ -261,9 +261,19 @@ apiRouter.get('/brands', async (_req: Request, res: Response) => {
 });
 
 apiRouter.get('/campaigns/active', async (_req: Request, res: Response) => {
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
   const now = Date.now();
   if (activeCampaignCache && now - activeCampaignCache.timestamp < CACHE_TTL_MS) {
-    return res.json({ campaign: activeCampaignCache.data });
+    const cached = activeCampaignCache.data;
+    if (!cached) {
+      return res.json({ campaign: null });
+    }
+    const start = new Date(cached.startDate).getTime();
+    const end = new Date(cached.endDate).getTime();
+    if (cached.isActive && !Number.isNaN(start) && !Number.isNaN(end) && start <= now && end >= now) {
+      return res.json({ campaign: cached });
+    }
+    activeCampaignCache = null;
   }
 
   const activeCampaign = await getActiveCampaignFromSupabase();

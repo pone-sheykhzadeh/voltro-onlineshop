@@ -426,22 +426,36 @@ export async function getActiveCampaignFromSupabase(): Promise<FlashCampaign | n
       .from('flash_campaigns')
       .select('*')
       .eq('is_active', true)
-      .maybeSingle();
+      .order('updated_at', { ascending: false });
 
     if (error || !data) {
       if (error) noteSupabaseFailure(error.message);
       return db.getActiveCampaign() || null;
     }
+
     markSupabaseHealthy();
+    const now = Date.now();
+    const activeRow = data.find((c) => {
+      const start = new Date(c.start_date).getTime();
+      const end = new Date(c.end_date).getTime();
+      return !Number.isNaN(start) && !Number.isNaN(end) && start <= now && end >= now;
+    });
+
+    if (!activeRow) {
+      return null;
+    }
+
+    const localMatch = db.getCampaigns().find((c) => c.id === activeRow.id);
     return {
-      id: data.id,
-      title: data.title,
-      discountPercent: data.discount_percent,
-      startDate: data.start_date,
-      endDate: data.end_date,
-      isActive: data.is_active,
-      eligibleProductIds: data.eligible_product_ids || [],
-      bannerText: data.banner_text || undefined,
+      id: activeRow.id,
+      title: activeRow.title,
+      discountPercent: Number(activeRow.discount_percent),
+      productDiscounts: activeRow.product_discounts || localMatch?.productDiscounts || {},
+      startDate: activeRow.start_date,
+      endDate: activeRow.end_date,
+      isActive: Boolean(activeRow.is_active),
+      eligibleProductIds: activeRow.eligible_product_ids || [],
+      bannerText: activeRow.banner_text || undefined,
     };
   } catch (err) {
     noteSupabaseFailure(err);
@@ -462,16 +476,21 @@ export async function getCampaignsFromSupabase(): Promise<FlashCampaign[]> {
       return db.getCampaigns();
     }
     markSupabaseHealthy();
-    return data.map((c) => ({
-      id: c.id,
-      title: c.title,
-      discountPercent: Number(c.discount_percent),
-      startDate: c.start_date,
-      endDate: c.end_date,
-      isActive: Boolean(c.is_active),
-      eligibleProductIds: c.eligible_product_ids || [],
-      bannerText: c.banner_text || undefined,
-    }));
+    const localCampaigns = db.getCampaigns();
+    return data.map((c) => {
+      const localMatch = localCampaigns.find((lc) => lc.id === c.id);
+      return {
+        id: c.id,
+        title: c.title,
+        discountPercent: Number(c.discount_percent),
+        productDiscounts: c.product_discounts || localMatch?.productDiscounts || {},
+        startDate: c.start_date,
+        endDate: c.end_date,
+        isActive: Boolean(c.is_active),
+        eligibleProductIds: c.eligible_product_ids || [],
+        bannerText: c.banner_text || undefined,
+      };
+    });
   } catch (err) {
     noteSupabaseFailure(err);
     return db.getCampaigns();
@@ -482,7 +501,7 @@ export async function saveCampaignInSupabase(campaign: FlashCampaign, adminUser:
   const client = getActiveSupabase();
   if (client) {
     try {
-      const { error } = await client.from('flash_campaigns').upsert({
+      const baseRow = {
         id: campaign.id,
         title: campaign.title,
         discount_percent: campaign.discountPercent,
@@ -492,9 +511,19 @@ export async function saveCampaignInSupabase(campaign: FlashCampaign, adminUser:
         eligible_product_ids: campaign.eligibleProductIds,
         banner_text: campaign.bannerText || null,
         updated_at: new Date().toISOString(),
+      };
+      const { error } = await client.from('flash_campaigns').upsert({
+        ...baseRow,
+        product_discounts: campaign.productDiscounts || {},
       });
       if (error) {
-        noteSupabaseFailure(error.message);
+        if (/product_discounts/i.test(error.message)) {
+          const { error: retryErr } = await client.from('flash_campaigns').upsert(baseRow);
+          if (retryErr) noteSupabaseFailure(retryErr.message);
+          else markSupabaseHealthy();
+        } else {
+          noteSupabaseFailure(error.message);
+        }
       } else {
         markSupabaseHealthy();
       }

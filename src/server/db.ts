@@ -952,16 +952,19 @@ class DatabaseManager {
   }
 
   getActiveCampaign(): FlashCampaign | undefined {
-    const now = new Date().toISOString();
-    return this.data.campaigns.find(
-      (c) => c.isActive && c.startDate <= now && c.endDate >= now
-    );
+    const now = Date.now();
+    return this.data.campaigns.find((c) => {
+      if (!c.isActive) return false;
+      const start = new Date(c.startDate).getTime();
+      const end = new Date(c.endDate).getTime();
+      return !Number.isNaN(start) && !Number.isNaN(end) && start <= now && end >= now;
+    });
   }
 
-  createCampaign(campaignData: Omit<FlashCampaign, 'id'>, adminUser: User): FlashCampaign {
+  createCampaign(campaignData: Omit<FlashCampaign, 'id'> & { id?: string }, adminUser: User): FlashCampaign {
     const newCamp: FlashCampaign = {
       ...campaignData,
-      id: `camp-${crypto.randomUUID()}`,
+      id: campaignData.id || `camp-${crypto.randomUUID()}`,
     };
     this.data.campaigns.push(newCamp);
     this.addAuditLog(adminUser.id, adminUser.name, 'CREATE_CAMPAIGN', newCamp.id, `ایجاد کمپین تخفیف: ${newCamp.title}`);

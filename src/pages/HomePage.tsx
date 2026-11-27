@@ -7,7 +7,7 @@ import { useComparison } from '../context/ComparisonContext.tsx';
 import { formatPrice } from '../utils/format.ts';
 
 // Dedicated memoized Countdown component to eliminate 1-second full-page re-renders
-const CampaignCountdown: React.FC<{ endDate?: string }> = memo(({ endDate }) => {
+const CampaignCountdown: React.FC<{ endDate?: string; onExpire?: () => void }> = memo(({ endDate, onExpire }) => {
   const pad2 = (num: number) => String(num).padStart(2, '0');
   const targetDate = endDate ? new Date(endDate).getTime() : Date.now() + 48 * 3600 * 1000;
 
@@ -21,13 +21,14 @@ const CampaignCountdown: React.FC<{ endDate?: string }> = memo(({ endDate }) => 
   });
 
   useEffect(() => {
-    const timer = setInterval(() => {
+    const update = () => {
       const now = Date.now();
       const distance = targetDate - now;
 
       if (distance <= 0) {
         setTimeLeft({ days: '00', hours: '00', minutes: '00', seconds: '00' });
-        return;
+        onExpire?.();
+        return false;
       }
 
       const days = Math.floor(distance / (1000 * 60 * 60 * 24));
@@ -41,10 +42,16 @@ const CampaignCountdown: React.FC<{ endDate?: string }> = memo(({ endDate }) => 
         minutes: pad2(minutes),
         seconds: pad2(seconds),
       });
+      return true;
+    };
+
+    if (!update()) return;
+    const timer = setInterval(() => {
+      if (!update()) clearInterval(timer);
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [targetDate]);
+  }, [targetDate, onExpire]);
 
   return (
     <div className="flex items-center gap-2" dir="ltr">
@@ -79,6 +86,45 @@ const CampaignCountdown: React.FC<{ endDate?: string }> = memo(({ endDate }) => 
   );
 });
 
+const CardRemainingTime: React.FC<{ endDate: string; onExpire?: () => void }> = memo(({ endDate, onExpire }) => {
+  const targetMs = new Date(endDate).getTime();
+  const formatRemaining = (diffMs: number) => {
+    const safe = Math.max(0, diffMs);
+    const days = Math.floor(safe / (1000 * 60 * 60 * 24));
+    const hours = String(Math.floor((safe % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60))).padStart(2, '0');
+    const minutes = String(Math.floor((safe % (1000 * 60 * 60)) / (1000 * 60))).padStart(2, '0');
+    const seconds = String(Math.floor((safe % (1000 * 60)) / 1000)).padStart(2, '0');
+    return days > 0 ? `${days}d ${hours}:${minutes}:${seconds}` : `${hours}:${minutes}:${seconds}`;
+  };
+
+  const [label, setLabel] = useState<string>(() => formatRemaining(targetMs - Date.now()));
+
+  useEffect(() => {
+    const tick = () => {
+      const diff = targetMs - Date.now();
+      if (diff <= 0) {
+        setLabel('00:00:00');
+        onExpire?.();
+        return false;
+      }
+      setLabel(formatRemaining(diff));
+      return true;
+    };
+
+    if (!tick()) return;
+    const timer = setInterval(() => {
+      if (!tick()) clearInterval(timer);
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [targetMs, onExpire]);
+
+  return (
+    <span className="font-mono font-semibold" dir="ltr">
+      {label}
+    </span>
+  );
+});
+
 interface HomePageProps {
   onNavigate: (path: string, productId?: string) => void;
 }
@@ -86,6 +132,7 @@ interface HomePageProps {
 export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
   const [products, setProducts] = useState<Product[]>([]);
   const [campaign, setCampaign] = useState<FlashCampaign | null>(null);
+  const [nowMs, setNowMs] = useState<number>(() => Date.now());
   const [activeCategoryFilter, setActiveCategoryFilter] = useState('all');
 
   const { addToCart } = useCart();
@@ -93,28 +140,100 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
   const { isFavorite, toggleFavorite } = useFavorites();
   const { isInComparison, addToComparison, removeFromComparison } = useComparison();
 
-  useEffect(() => {
-    // Load products from DB
-    fetch('/api/products')
+  const fetchCampaignAndProducts = React.useCallback(() => {
+    fetch('/api/products', { cache: 'no-store' })
       .then((res) => res.json())
       .then((data) => {
         if (data.products) setProducts(data.products);
       })
       .catch((err) => console.error('Failed to fetch products:', err));
 
-    // Load active campaign from DB
-    fetch('/api/campaigns/active')
+    fetch('/api/campaigns/active', { cache: 'no-store' })
       .then((res) => res.json())
       .then((data) => {
-        if (data.campaign) {
-          setCampaign(data.campaign);
-        }
+        setCampaign(data.campaign || null);
+        setNowMs(Date.now());
       })
       .catch((err) => console.error('Failed to fetch active campaign:', err));
   }, []);
 
-  // Flash deals products
-  const flashProducts = products.filter((p) => p.isFlashDeal || (campaign && campaign.eligibleProductIds.includes(p.id)));
+  useEffect(() => {
+    fetchCampaignAndProducts();
+
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        fetchCampaignAndProducts();
+      }
+    };
+    window.addEventListener('focus', fetchCampaignAndProducts);
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => {
+      window.removeEventListener('focus', fetchCampaignAndProducts);
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
+  }, [fetchCampaignAndProducts]);
+
+  // Automatically expire active campaign UI the moment endDate is reached
+  useEffect(() => {
+    if (!campaign || !campaign.isActive) return;
+    const startMs = new Date(campaign.startDate).getTime();
+    const endMs = new Date(campaign.endDate).getTime();
+    if (Number.isNaN(startMs) || Number.isNaN(endMs)) return;
+
+    const current = Date.now();
+    if (current < startMs) {
+      const startTimer = setTimeout(() => setNowMs(Date.now()), Math.min(startMs - current + 50, 2_147_483_647));
+      return () => clearTimeout(startTimer);
+    }
+    if (current <= endMs) {
+      const endTimer = setTimeout(() => setNowMs(Date.now()), Math.min(endMs - current + 50, 2_147_483_647));
+      return () => clearTimeout(endTimer);
+    }
+  }, [campaign, nowMs]);
+
+  const isCampaignLive = Boolean(
+    campaign &&
+      campaign.isActive &&
+      !Number.isNaN(new Date(campaign.startDate).getTime()) &&
+      !Number.isNaN(new Date(campaign.endDate).getTime()) &&
+      new Date(campaign.startDate).getTime() <= nowMs &&
+      new Date(campaign.endDate).getTime() >= nowMs
+  );
+
+  const getProductDiscount = (prod: Product) => {
+    if (!isCampaignLive || !campaign || !campaign.eligibleProductIds.includes(prod.id)) {
+      return {
+        hasDiscount: false,
+        discountPercent: 0,
+        originalPrice: prod.basePrice,
+        finalPrice: prod.basePrice,
+      };
+    }
+
+    const rawPct = campaign.productDiscounts?.[prod.id] ?? campaign.discountPercent;
+    const discountPercent = Number(rawPct) > 0 && Number(rawPct) < 100 ? Math.round(Number(rawPct)) : 0;
+    if (discountPercent <= 0) {
+      return {
+        hasDiscount: false,
+        discountPercent: 0,
+        originalPrice: prod.basePrice,
+        finalPrice: prod.basePrice,
+      };
+    }
+
+    return {
+      hasDiscount: true,
+      discountPercent,
+      originalPrice: prod.basePrice,
+      finalPrice: Math.round(prod.basePrice * (1 - discountPercent / 100)),
+    };
+  };
+
+  // Flash deals products driven directly by active admin campaign
+  const flashProducts =
+    isCampaignLive && campaign
+      ? products.filter((p) => campaign.eligibleProductIds.includes(p.id))
+      : [];
 
   // Filtered catalog products
   const filteredCatalog = products.filter((p) => {
@@ -396,7 +515,7 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
       </section>
 
       {/* 3. TIME-LIMITED FLASH SALE / FESTIVAL SECTION */}
-      {campaign && campaign.isActive && flashProducts.length > 0 && (
+      {isCampaignLive && campaign && flashProducts.length > 0 && (
       <section className="w-full px-4 sm:px-6 lg:px-10 py-12 relative overflow-hidden">
         <div className="max-w-7xl mx-auto flex flex-col gap-8 relative z-10">
           {/* Header Card with Persistent Countdown */}
@@ -423,7 +542,7 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
 
             {/* Countdown Blocks */}
             <div className="flex flex-wrap items-center gap-4 w-full lg:w-auto justify-between lg:justify-end">
-              <CampaignCountdown endDate={campaign?.endDate} />
+              <CampaignCountdown endDate={campaign?.endDate} onExpire={() => setNowMs(Date.now())} />
 
               <button
                 onClick={() => onNavigate('special-offers')}
@@ -441,12 +560,7 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {flashProducts.map((item) => {
               const defaultVariant = item.variants[0];
-              const customDiscount = campaign?.productDiscounts?.[item.id];
-              const discountPercent = customDiscount !== undefined
-                ? customDiscount
-                : item.compareAtPrice
-                ? Math.round(((item.compareAtPrice - item.basePrice) / item.compareAtPrice) * 100)
-                : (campaign?.discountPercent || 9);
+              const { discountPercent, originalPrice, finalPrice } = getProductDiscount(item);
 
               return (
                 <div
@@ -542,16 +656,22 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
                       </div>
                     </div>
 
+                    <div className="flex items-center justify-between text-[10px] font-mono text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-500/10 border border-blue-200/70 dark:border-blue-500/20 rounded-lg px-2.5 py-1 my-1">
+                      <span className="flex items-center gap-1">
+                        <span className="material-symbols-outlined text-xs">timer</span>
+                        <span>زمان باقیمانده:</span>
+                      </span>
+                      <CardRemainingTime endDate={campaign!.endDate} onExpire={() => setNowMs(Date.now())} />
+                    </div>
+
                     <div className="flex items-baseline justify-between mt-1 pt-1 border-t border-slate-100 dark:border-white/[0.04]">
                       <div className="flex flex-col">
-                        {item.compareAtPrice && (
-                          <span className="text-[11px] text-slate-400 dark:text-zinc-500 line-through">
-                            {formatPrice(item.compareAtPrice)}
-                          </span>
-                        )}
+                        <span className="text-[11px] text-slate-400 dark:text-zinc-500 line-through font-mono">
+                          {formatPrice(originalPrice)}
+                        </span>
                         <div className="flex items-baseline gap-1">
                           <span className="font-display text-lg font-bold font-mono text-slate-900 dark:text-white">
-                            {formatPrice(item.basePrice)}
+                            {formatPrice(finalPrice)}
                           </span>
                           <span className="text-[10px] text-slate-500 dark:text-zinc-400">تومان</span>
                         </div>
@@ -706,15 +826,22 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {filteredCatalog.slice(0, 8).map((prod) => {
               const defaultVariant = prod.variants[0];
+              const { hasDiscount, discountPercent, originalPrice, finalPrice } = getProductDiscount(prod);
               return (
                 <div
                   key={prod.id}
                   className="group relative rounded-2xl border transition-all flex flex-col p-5 shadow-lg bg-white dark:bg-[#161619] hover:bg-slate-50/70 dark:hover:bg-[#1a1a1f] border-slate-200 dark:border-white/[0.04] hover:border-blue-500/40"
                 >
                   <div className="flex items-center justify-between mb-3 z-10">
-                    <span className="font-mono text-[10px] px-2.5 py-0.5 rounded-full bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-500/20 font-semibold">
-                      {prod.tags[0] || 'پرچمدار'}
-                    </span>
+                    {hasDiscount ? (
+                      <span className="font-mono text-[11px] px-2.5 py-0.5 rounded-full bg-blue-600 text-white font-semibold shadow-sm">
+                        {discountPercent}٪ تخفیف
+                      </span>
+                    ) : (
+                      <span className="font-mono text-[10px] px-2.5 py-0.5 rounded-full bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-500/20 font-semibold">
+                        {prod.tags[0] || 'پرچمدار'}
+                      </span>
+                    )}
                     <div className="flex items-center gap-1.5">
                       <button
                         onClick={(e) => {
@@ -781,11 +908,28 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
                       {prod.name}
                     </h3>
 
-                    <div className="flex items-baseline gap-1 mt-2">
-                      <span className="font-display text-lg font-bold font-mono text-slate-900 dark:text-white">
-                        {formatPrice(prod.basePrice)}
-                      </span>
-                      <span className="text-[11px] text-slate-500 dark:text-zinc-400">تومان</span>
+                    {hasDiscount && campaign && (
+                      <div className="flex items-center justify-between text-[10px] font-mono text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-500/10 border border-blue-200/70 dark:border-blue-500/20 rounded-lg px-2.5 py-1 mt-1">
+                        <span className="flex items-center gap-1">
+                          <span className="material-symbols-outlined text-xs">timer</span>
+                          <span>زمان باقیمانده:</span>
+                        </span>
+                        <CardRemainingTime endDate={campaign.endDate} onExpire={() => setNowMs(Date.now())} />
+                      </div>
+                    )}
+
+                    <div className="flex flex-col mt-2">
+                      {hasDiscount && (
+                        <span className="text-[11px] text-slate-400 dark:text-zinc-500 line-through font-mono">
+                          {formatPrice(originalPrice)}
+                        </span>
+                      )}
+                      <div className="flex items-baseline gap-1">
+                        <span className="font-display text-lg font-bold font-mono text-slate-900 dark:text-white">
+                          {formatPrice(finalPrice)}
+                        </span>
+                        <span className="text-[11px] text-slate-500 dark:text-zinc-400">تومان</span>
+                      </div>
                     </div>
 
                     <button

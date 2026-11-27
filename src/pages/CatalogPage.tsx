@@ -1,9 +1,48 @@
-import React, { useEffect, useState } from 'react';
-import type { Product } from '../types/index.ts';
+import React, { useEffect, useState, useCallback, memo } from 'react';
+import type { Product, FlashCampaign } from '../types/index.ts';
 import { useCart } from '../context/CartContext.tsx';
 import { useFavorites } from '../context/FavoritesContext.tsx';
 import { useComparison } from '../context/ComparisonContext.tsx';
 import { formatPrice } from '../utils/format.ts';
+
+const CardRemainingTime: React.FC<{ endDate: string; onExpire?: () => void }> = memo(({ endDate, onExpire }) => {
+  const targetMs = new Date(endDate).getTime();
+  const formatRemaining = (diffMs: number) => {
+    const safe = Math.max(0, diffMs);
+    const days = Math.floor(safe / (1000 * 60 * 60 * 24));
+    const hours = String(Math.floor((safe % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60))).padStart(2, '0');
+    const minutes = String(Math.floor((safe % (1000 * 60 * 60)) / (1000 * 60))).padStart(2, '0');
+    const seconds = String(Math.floor((safe % (1000 * 60)) / 1000)).padStart(2, '0');
+    return days > 0 ? `${days}d ${hours}:${minutes}:${seconds}` : `${hours}:${minutes}:${seconds}`;
+  };
+
+  const [label, setLabel] = useState<string>(() => formatRemaining(targetMs - Date.now()));
+
+  useEffect(() => {
+    const tick = () => {
+      const diff = targetMs - Date.now();
+      if (diff <= 0) {
+        setLabel('00:00:00');
+        onExpire?.();
+        return false;
+      }
+      setLabel(formatRemaining(diff));
+      return true;
+    };
+
+    if (!tick()) return;
+    const timer = setInterval(() => {
+      if (!tick()) clearInterval(timer);
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [targetMs, onExpire]);
+
+  return (
+    <span className="font-mono font-semibold" dir="ltr">
+      {label}
+    </span>
+  );
+});
 
 interface CatalogPageProps {
   onNavigate: (path: string, productId?: string) => void;
@@ -12,6 +51,8 @@ interface CatalogPageProps {
 
 export const CatalogPage: React.FC<CatalogPageProps> = ({ onNavigate, initialQuery = '' }) => {
   const [products, setProducts] = useState<Product[]>([]);
+  const [campaign, setCampaign] = useState<FlashCampaign | null>(null);
+  const [nowMs, setNowMs] = useState<number>(() => Date.now());
   const [search, setSearch] = useState(initialQuery);
   const [debouncedSearch, setDebouncedSearch] = useState(initialQuery);
   const [selectedCategory, setSelectedCategory] = useState('all');
@@ -22,6 +63,86 @@ export const CatalogPage: React.FC<CatalogPageProps> = ({ onNavigate, initialQue
   const { addToCart } = useCart();
   const { isFavorite, toggleFavorite } = useFavorites();
   const { isInComparison, addToComparison, removeFromComparison } = useComparison();
+
+  const fetchActiveCampaign = useCallback(() => {
+    fetch('/api/campaigns/active', { cache: 'no-store' })
+      .then((res) => res.json())
+      .then((data) => {
+        setCampaign(data.campaign || null);
+        setNowMs(Date.now());
+      })
+      .catch((err) => console.error(err));
+  }, []);
+
+  useEffect(() => {
+    fetchActiveCampaign();
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        fetchActiveCampaign();
+      }
+    };
+    window.addEventListener('focus', fetchActiveCampaign);
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => {
+      window.removeEventListener('focus', fetchActiveCampaign);
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
+  }, [fetchActiveCampaign]);
+
+  useEffect(() => {
+    if (!campaign || !campaign.isActive) return;
+    const startMs = new Date(campaign.startDate).getTime();
+    const endMs = new Date(campaign.endDate).getTime();
+    if (Number.isNaN(startMs) || Number.isNaN(endMs)) return;
+
+    const current = Date.now();
+    if (current < startMs) {
+      const t = setTimeout(() => setNowMs(Date.now()), Math.min(startMs - current + 50, 2_147_483_647));
+      return () => clearTimeout(t);
+    }
+    if (current <= endMs) {
+      const t = setTimeout(() => setNowMs(Date.now()), Math.min(endMs - current + 50, 2_147_483_647));
+      return () => clearTimeout(t);
+    }
+  }, [campaign, nowMs]);
+
+  const isCampaignLive = Boolean(
+    campaign &&
+      campaign.isActive &&
+      !Number.isNaN(new Date(campaign.startDate).getTime()) &&
+      !Number.isNaN(new Date(campaign.endDate).getTime()) &&
+      new Date(campaign.startDate).getTime() <= nowMs &&
+      new Date(campaign.endDate).getTime() >= nowMs
+  );
+
+  const getProductDiscount = (prod: Product) => {
+    if (!isCampaignLive || !campaign || !campaign.eligibleProductIds.includes(prod.id)) {
+      return {
+        hasDiscount: false,
+        discountPercent: 0,
+        originalPrice: prod.basePrice,
+        finalPrice: prod.basePrice,
+      };
+    }
+
+    const rawPct = campaign.productDiscounts?.[prod.id] ?? campaign.discountPercent;
+    const discountPercent = Number(rawPct) > 0 && Number(rawPct) < 100 ? Math.round(Number(rawPct)) : 0;
+    if (discountPercent <= 0) {
+      return {
+        hasDiscount: false,
+        discountPercent: 0,
+        originalPrice: prod.basePrice,
+        finalPrice: prod.basePrice,
+      };
+    }
+
+    return {
+      hasDiscount: true,
+      discountPercent,
+      originalPrice: prod.basePrice,
+      finalPrice: Math.round(prod.basePrice * (1 - discountPercent / 100)),
+    };
+  };
 
   // Debounce search input by 300ms to eliminate redundant requests and re-renders
   useEffect(() => {
@@ -39,7 +160,7 @@ export const CatalogPage: React.FC<CatalogPageProps> = ({ onNavigate, initialQue
     if (selectedBrand !== 'all') params.append('brand', selectedBrand);
     if (sortBy) params.append('sort', sortBy);
 
-    fetch(`/api/products?${params.toString()}`)
+    fetch(`/api/products?${params.toString()}`, { cache: 'no-store' })
       .then((res) => res.json())
       .then((data) => {
         if (data.products) setProducts(data.products);
@@ -158,15 +279,22 @@ export const CatalogPage: React.FC<CatalogPageProps> = ({ onNavigate, initialQue
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {products.map((item) => {
               const defaultVariant = item.variants[0];
+              const { hasDiscount, discountPercent, originalPrice, finalPrice } = getProductDiscount(item);
               return (
                 <div
                   key={item.id}
                   className="group relative rounded-2xl border transition-all flex flex-col p-5 shadow-lg bg-white dark:bg-[#161619] hover:bg-slate-50/80 dark:hover:bg-[#1a1a20] border-slate-200 dark:border-white/[0.04] hover:border-blue-500/40"
                 >
                   <div className="flex items-center justify-between mb-3 z-10">
-                    <span className="font-mono text-[10px] px-2.5 py-0.5 rounded-full bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-500/20 font-semibold">
-                      {item.brand}
-                    </span>
+                    {hasDiscount ? (
+                      <span className="font-mono text-[11px] px-2.5 py-0.5 rounded-full bg-blue-600 text-white font-semibold shadow-sm">
+                        {discountPercent}٪ تخفیف
+                      </span>
+                    ) : (
+                      <span className="font-mono text-[10px] px-2.5 py-0.5 rounded-full bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-500/20 font-semibold">
+                        {item.brand}
+                      </span>
+                    )}
                     <div className="flex items-center gap-1.5">
                       <button
                         onClick={(e) => {
@@ -236,11 +364,28 @@ export const CatalogPage: React.FC<CatalogPageProps> = ({ onNavigate, initialQue
                       {item.name}
                     </h3>
 
-                    <div className="flex items-baseline gap-1 mt-2">
-                      <span className="font-display text-lg font-bold font-mono text-slate-900 dark:text-white">
-                        {formatPrice(item.basePrice)}
-                      </span>
-                      <span className="text-[11px] text-slate-500 dark:text-zinc-400">تومان</span>
+                    {hasDiscount && campaign && (
+                      <div className="flex items-center justify-between text-[10px] font-mono text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-500/10 border border-blue-200/70 dark:border-blue-500/20 rounded-lg px-2.5 py-1 mt-1">
+                        <span className="flex items-center gap-1">
+                          <span className="material-symbols-outlined text-xs">timer</span>
+                          <span>زمان باقیمانده:</span>
+                        </span>
+                        <CardRemainingTime endDate={campaign.endDate} onExpire={() => setNowMs(Date.now())} />
+                      </div>
+                    )}
+
+                    <div className="flex flex-col mt-2">
+                      {hasDiscount && (
+                        <span className="text-[11px] text-slate-400 dark:text-zinc-500 line-through font-mono">
+                          {formatPrice(originalPrice)}
+                        </span>
+                      )}
+                      <div className="flex items-baseline gap-1">
+                        <span className="font-display text-lg font-bold font-mono text-slate-900 dark:text-white">
+                          {formatPrice(finalPrice)}
+                        </span>
+                        <span className="text-[11px] text-slate-500 dark:text-zinc-400">تومان</span>
+                      </div>
                     </div>
 
                     <button
